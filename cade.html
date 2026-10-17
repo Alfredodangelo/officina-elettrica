@@ -183,6 +183,7 @@ const TYPES={
  7000:["contatto ausiliario NA","cno"], 7001:["contatto ausiliario NC","cnc"], 7004:["contatto timer NA","cno"],
  8000:["pulsante NA","pno"], 8001:["pulsante NC","pnc"], 8012:["ausiliario termico NA","cno"], 8013:["ausiliario termico NC","cnc"],
  8016:["ausiliario interruttore","cno"], 9000:["bobina contattore","coil"], 9004:["bobina timer","coilt"], 9009:["lampada","lamp"],
+ 9016:["bobina contatore","countc"], 10063:["contatore di impulsi","cblk"], 10075:["contatore avanti-indietro","cblk"],
  4000:["filo","wire"], 4001:["nodo","node"], 4010:["filo","wire"], 20000:["fine foglio","skip"]
 };
 const famName=t=>(TYPES[t]||["tipo "+t,"gen"])[0];
@@ -257,7 +258,9 @@ function drawSym(c){
   } else if(f==="coil"){ s+=L(x,y,x,y+3)+L(x,y+H,x,y+H-3)+Rr(x-4,y+3,8,H-6)+Tm(x,y)+Tm(x,y+H);
   } else if(f==="coilt"){ s+=L(x,y,x,y+3)+L(x,y+H,x,y+H-3)+Rr(x-4,y+3,8,H-6)+Tm(x,y)+Tm(x,y+H)+`<path class="sym" d="M${x-2.5} ${y+6} h5 M${x} ${y+6} l2 -1.5"/>`;
   } else if(f==="lamp"){ const ly=y+H/2; s+=L(x,y,x,ly-5)+L(x,y+H,x,ly+5)+Cr(x,ly,5)+L(x-3.5,ly-3.5,x+3.5,ly+3.5)+L(x-3.5,ly+3.5,x+3.5,ly-3.5)+Tm(x,y)+Tm(x,y+H);
-  } else { s+=`<rect class="bbox" x="${hx}" y="${hy}" width="${hw}" height="${hh}"/><text class="lab" x="${cx}" y="${(cy+1.5).toFixed(1)}" text-anchor="middle" font-size="4.5">?</text>`; }
+  } else if(f==="countc"){ s+=L(x,y,x,y+3)+L(x,y+H,x,y+H-3)+Rr(x-4,y+3,8,H-6)+Tm(x,y)+Tm(x,y+H)+`<text class="lab" x="${x}" y="${(y+H/2+1.6).toFixed(1)}" text-anchor="middle" font-size="4.5">C</text>`;
+  } else if(f==="cblk"){ s+=Rr(hx+1,hy+1,hw-2,hh-2)+`<text class="lab" x="${cx}" y="${(cy+1.6).toFixed(1)}" text-anchor="middle" font-size="4">${c.type===10075?"CTUD":"CTU"}</text>`;
+  } else { const adv=c.type>=10000; s+=`<rect class="bbox" x="${hx}" y="${hy}" width="${hw}" height="${hh}"/><text class="lab" x="${cx}" y="${(cy+1.5).toFixed(1)}" text-anchor="middle" font-size="${adv?3:4.5}">${adv?"GRAFCET/PLC":"?"}</text>`; }
   const hit={x:hx-1,y:hy-1,w:hw+2,h:hh+2};
   return {svg:s, hit, lab:{x:hit.x+hit.w+1.5, y:cy+1.4}};
 }
@@ -302,7 +305,8 @@ function renderSide(){
     `<dt>Versione</dt><dd>${esc(doc.version)}</dd><dt>Fili</dt><dd>${doc.wires.length}</dd>`;
   $('#compcount').textContent='('+doc.comps.length+')';
   const SHORT={pole3:"potenza 3P",motor:"motore",transf:"trasform.",fuse:"fusibile",cno:"contatto NA",
-    cnc:"contatto NC",pno:"pulsante NA",pnc:"pulsante NC",coil:"bobina",coilt:"bobina timer",lamp:"lampada",gen:"altro"};
+    cnc:"contatto NC",pno:"pulsante NA",pnc:"pulsante NC",coil:"bobina",coilt:"bobina timer",lamp:"lampada",
+    countc:"contatore",cblk:"contatore",gen:"altro"};
   const byFam={};
   for(const c of doc.comps){const n=fam(c.type)==="gen"?("tipo "+c.type):(SHORT[fam(c.type)]||"altro");byFam[n]=(byFam[n]||0)+1;}
   $('#counts').innerHTML=Object.entries(byFam).sort((a,b)=>b[1]-a[1])
