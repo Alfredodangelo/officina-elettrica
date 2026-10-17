@@ -176,15 +176,39 @@ const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // tipi -> famiglia e nome
+// mappa codice->[nome,famiglia] estratta dall'eseguibile con REA/Ghidra
 const TYPES={
- 1000:["motore","motor"], 2001:["contattore (poli di potenza)","pole3"], 2002:["contattore 4 poli","pole3"], 2004:["sezionatore / interrutt. 3P","pole3"],
- 3005:["origine foglio","skip"], 3012:["trasformatore","transf"], 5000:["fusibile","fuse"], 5002:["fusibile","fuse"], 6002:["fusibile / protezione","fuse"],
- 6009:["interrutt. automatico (magnetotermico)","pole3"],
- 7000:["contatto ausiliario NA","cno"], 7001:["contatto ausiliario NC","cnc"], 7004:["contatto timer NA","cno"],
- 8000:["pulsante NA","pno"], 8001:["pulsante NC","pnc"], 8012:["ausiliario termico NA","cno"], 8013:["ausiliario termico NC","cnc"],
- 8016:["ausiliario interruttore","cno"], 9000:["bobina contattore","coil"], 9004:["bobina timer","coilt"], 9009:["lampada","lamp"],
- 9016:["bobina contatore","countc"], 10063:["contatore di impulsi","cblk"], 10075:["contatore avanti-indietro","cblk"],
- 4000:["filo","wire"], 4001:["nodo","node"], 4010:["filo","wire"], 20000:["fine foglio","skip"]
+ // motori
+ 1000:["motore","motor"],1003:["motore Dahlander","motor"],1004:["motore rotore avvolto","motor"],1005:["motore 2 velocità","motor"],1006:["motore cc magn. perm.","motor"],1007:["motore cc ecc. indip.","motor"],
+ // resistenze / trasformatori / variatori
+ 1050:["resistenza","res"],1051:["resistenza III","res"],1052:["autotrasformatore","transf"],3012:["trasformatore","transf"],3013:["raddrizzatore","block"],
+ 1054:["variatore ca II","block"],1055:["variatore ca III","block"],1057:["variatore cc","block"],1058:["variatore cc","block"],1059:["controllo variatore cc","block"],
+ // contattori e interruttori di potenza
+ 2000:["contattore 2P","pole3"],2001:["contattore 3P","pole3"],2002:["contattore 4P","pole3"],2006:["contattore 1P","pole3"],
+ 2003:["interruttore 2P","pole3"],2004:["sezionatore 3P","pole3"],2005:["interruttore 4P","pole3"],2007:["interruttore 1P","pole3"],
+ // cavi, morsetti, connettori
+ 4000:["filo di fase","wire"],4001:["nodo","node"],4002:["cavo multipolare","wire"],4003:["entrata cavo","wire"],4004:["entrata cavo","wire"],4009:["filo neutro","wire"],4010:["filo PE","wire"],4018:["filo +","wire"],4019:["filo −","wire"],
+ 4011:["morsettiera","term"],4012:["morsetto","term"],4013:["connettore uscita","term"],4014:["connettore entrata","term"],4015:["morsetto","term"],4016:["morsetto","term"],4017:["morsetto","term"],
+ // fusibili e sezionatori
+ 5000:["fusibile","fuse"],5001:["fusibile 1P+N","fuse"],5002:["fusibile 2P","fuse"],5003:["fusibile 3P","fuse"],5004:["fusibile 3P+N","fuse"],6002:["fusibile / protezione","fuse"],
+ 5005:["sezionatore 1P","pole3"],5006:["sezionatore 1P+N","pole3"],5007:["sezionatore 2P","pole3"],5008:["sezionatore 3P","pole3"],5009:["sezionatore 3P+N","pole3"],
+ // magnetotermici e differenziali
+ 6005:["differenziale 1P+N","pole3"],6006:["differenziale 3P+N","pole3"],6008:["magnetotermico 2P","pole3"],6009:["magnetotermico 3P","pole3"],6010:["magnetotermico 1P","pole3"],6015:["magnetotermico","pole3"],6018:["interrutt. differenziale","pole3"],6019:["interruttore","pole3"],6020:["sezionatore","pole3"],
+ // contatti ausiliari
+ 7000:["contatto ausiliario NA","cno"],7001:["contatto ausiliario NC","cnc"],7002:["ausiliario NA-NC","cno"],7003:["ausiliario in scambio","cno"],7004:["contatto timer NA","cno"],7018:["contatto contattore","cno"],7019:["contatti ausiliari","cno"],7020:["contatto ON-delay","cno"],7021:["contatto OFF-delay","cnc"],
+ // pulsanti, interruttori, finecorsa
+ 8000:["pulsante NA","pno"],8001:["pulsante NC","pnc"],8002:["pulsante NA-NC","pno"],8003:["pulsante in scambio","pno"],8004:["pulsante fungo NA","pno"],8005:["pulsante fungo NC","pnc"],8006:["pulsante fungo NA-NC","pno"],8007:["pulsante fungo scambio","pno"],
+ 8008:["contatto interrutt. NA","cno"],8009:["contatto interrutt. NC","cnc"],8010:["contatto interrutt. NA-NC","cno"],8011:["contatto interrutt. scambio","cno"],8012:["finecorsa NA","cno"],8013:["finecorsa NC","cnc"],8014:["finecorsa NA-NC","cno"],8015:["finecorsa scambio","cno"],8016:["ausiliario interruttore","cno"],8100:["pulsante","pno"],8101:["spia","lamp"],8102:["pulsantiera","block"],
+ // bobine e segnalazioni
+ 9000:["bobina monostabile","coil"],9001:["bobina bistabile","coil"],9002:["telerruttore","coil"],9004:["bobina timer","coilt"],9007:["timer intermittente","coilt"],9009:["lampada","lamp"],9010:["campanello","horn"],9011:["cicalino","horn"],9012:["sirena","horn"],9013:["tromba","horn"],9016:["bobina contatore","countc"],
+ // logica / simulazione
+ 10050:["contatto NA","cno"],10051:["contatto NC","cnc"],10052:["fronte di salita","cno"],10053:["fronte di discesa","cnc"],10060:["assegna","coil"],10061:["set ripetuto","coil"],10062:["reset","coil"],10063:["contatore impulsi","cblk"],10064:["bistabile RS","block"],10065:["divisore binario","block"],10070:["prova","block"],10071:["visualizza","block"],10075:["contatore avanti-indietro","cblk"],
+ // GRAFCET
+ 10100:["Etapa 0 (iniziale) GRAFCET","grafinit"],10101:["Etapa GRAFCET","grafstep"],10107:["enlace entrata GRAFCET","graflink"],10108:["enlace uscita GRAFCET","graflink"],10111:["macro Etapa GRAFCET","grafstep"],10112:["Y (divergenza) GRAFCET","graflink"],
+ // PLC (Siemens S7-1200/1500)
+ 10204:["ingresso digitale PLC","plc"],10205:["uscita digitale PLC","plc"],10206:["CPU PLC","plc"],10207:["alimentazione I/O PLC","plc"],10208:["alimentazione I/O PLC","plc"],
+ // base
+ 3005:["origine foglio","skip"],20000:["fine foglio","skip"]
 };
 const famName=t=>(TYPES[t]||["tipo "+t,"gen"])[0];
 const fam=t=>(TYPES[t]||["","gen"])[1];
@@ -225,7 +249,7 @@ function parseCad(text){
 
 // ---------- simboli ----------
 // simboli IEC ancorati al morsetto d'origine (x,y = morsetto in alto); il glifo scende di H
-function polesOf(c){ if(c.type===2002) return 4; if(fam(c.type)==="pole3") return c.terms.length>=8?4:3; return 1; }
+function polesOf(c){ if(fam(c.type)!=="pole3") return 1; return Math.max(1,Math.min(4,Math.round((c.terms.length||6)/2))); }
 function drawSym(c){
   const f=fam(c.type), x=c.x, y=c.y;
   const bx0=x+c.bx, by0=y+c.by, bx1=x+c.ex, by1=y+c.ey;
@@ -260,6 +284,13 @@ function drawSym(c){
   } else if(f==="lamp"){ const ly=y+H/2; s+=L(x,y,x,ly-5)+L(x,y+H,x,ly+5)+Cr(x,ly,5)+L(x-3.5,ly-3.5,x+3.5,ly+3.5)+L(x-3.5,ly+3.5,x+3.5,ly-3.5)+Tm(x,y)+Tm(x,y+H);
   } else if(f==="countc"){ s+=L(x,y,x,y+3)+L(x,y+H,x,y+H-3)+Rr(x-4,y+3,8,H-6)+Tm(x,y)+Tm(x,y+H)+`<text class="lab" x="${x}" y="${(y+H/2+1.6).toFixed(1)}" text-anchor="middle" font-size="4.5">C</text>`;
   } else if(f==="cblk"){ s+=Rr(hx+1,hy+1,hw-2,hh-2)+`<text class="lab" x="${cx}" y="${(cy+1.6).toFixed(1)}" text-anchor="middle" font-size="4">${c.type===10075?"CTUD":"CTU"}</text>`;
+  } else if(f==="res"){ s+=L(x,y,x,y+4)+L(x,y+H,x,y+H-4)+Rr(x-3,y+4,6,H-8)+Tm(x,y)+Tm(x,y+H);
+  } else if(f==="term"){ s+=L(x,y,x,y+H)+`<rect class="symf" x="${(x-1.6).toFixed(1)}" y="${(cy-1.6).toFixed(1)}" width="3.2" height="3.2"/>`+Tm(x,y)+Tm(x,y+H);
+  } else if(f==="horn"){ const my=y+H/2; s+=L(x,y,x,my-4)+`<path class="sym" d="M${x-5} ${(my+4).toFixed(1)} a5 5 0 0 1 10 0 z"/>`+Tm(x,y);
+  } else if(f==="grafinit"){ s+=Rr(cx-7,cy-7,14,14)+Rr(cx-4.5,cy-4.5,9,9);
+  } else if(f==="grafstep"){ s+=Rr(cx-7,cy-7,14,14);
+  } else if(f==="graflink"){ s+=L(hx,cy,hx+hw,cy)+`<path class="sym" d="M${(cx+2).toFixed(1)} ${(cy-2.5).toFixed(1)} l3 2.5 l-3 2.5"/>`;
+  } else if(f==="plc"||f==="block"){ const lbl={3013:"≈",1054:"VFD",1055:"VFD",1057:"VFD",1058:"VFD",1059:"VFD",8102:"BP",10064:"RS",10065:"÷2",10070:"TEST",10071:"■",10204:"I",10205:"Q",10206:"CPU",10207:"L+",10208:"L+"}[c.type]||"□"; s+=Rr(hx+1,hy+1,hw-2,hh-2)+`<text class="lab" x="${cx}" y="${(cy+1.6).toFixed(1)}" text-anchor="middle" font-size="4">${lbl}</text>`;
   } else { const adv=c.type>=10000; s+=`<rect class="bbox" x="${hx}" y="${hy}" width="${hw}" height="${hh}"/><text class="lab" x="${cx}" y="${(cy+1.5).toFixed(1)}" text-anchor="middle" font-size="${adv?3:4.5}">${adv?"GRAFCET/PLC":"?"}</text>`; }
   const hit={x:hx-1,y:hy-1,w:hw+2,h:hh+2};
   return {svg:s, hit, lab:{x:hit.x+hit.w+1.5, y:cy+1.4}};
@@ -304,9 +335,10 @@ function renderSide(){
   dm.innerHTML=`<dt>Nome</dt><dd>${esc(doc.name||'—')}</dd><dt>Data</dt><dd>${esc(doc.date||'—')}</dd>`+
     `<dt>Versione</dt><dd>${esc(doc.version)}</dd><dt>Fili</dt><dd>${doc.wires.length}</dd>`;
   $('#compcount').textContent='('+doc.comps.length+')';
-  const SHORT={pole3:"potenza 3P",motor:"motore",transf:"trasform.",fuse:"fusibile",cno:"contatto NA",
+  const SHORT={pole3:"potenza",motor:"motore",transf:"trasform.",fuse:"fusibile",cno:"contatto NA",
     cnc:"contatto NC",pno:"pulsante NA",pnc:"pulsante NC",coil:"bobina",coilt:"bobina timer",lamp:"lampada",
-    countc:"contatore",cblk:"contatore",gen:"altro"};
+    countc:"contatore",cblk:"contatore",res:"resistenza",term:"morsetto",horn:"segnalazione",block:"blocco",
+    grafinit:"GRAFCET",grafstep:"GRAFCET",graflink:"GRAFCET",plc:"PLC",gen:"altro"};
   const byFam={};
   for(const c of doc.comps){const n=fam(c.type)==="gen"?("tipo "+c.type):(SHORT[fam(c.type)]||"altro");byFam[n]=(byFam[n]||0)+1;}
   $('#counts').innerHTML=Object.entries(byFam).sort((a,b)=>b[1]-a[1])
