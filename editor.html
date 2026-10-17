@@ -82,6 +82,14 @@ svg.sheet .hit{fill:transparent}
 svg.sheet.placing{cursor:crosshair} svg.sheet.wiring{cursor:crosshair}
 svg.sheet .ghost{opacity:.5;pointer-events:none}
 svg.sheet .draft{stroke:var(--accent);stroke-width:2.2;fill:none;stroke-dasharray:4 3;pointer-events:none}
+svg.sheet .wire.live{stroke:#2fd38a;stroke-width:3}
+svg.sheet .comp.live .term{fill:#2fd38a;opacity:1}
+svg.sheet .comp.en .sym{stroke:#2fd38a}
+svg.sheet .comp.en .f{fill:#2fd38a}
+svg.sheet .lab.en{fill:#2fd38a}
+svg.sheet.sim .comp.oper{cursor:pointer}
+svg.sheet.sim .comp.oper .hit{fill:rgba(47,211,138,.05)}
+.btn.simon{background:#2fd38a;border-color:transparent;color:#03271a}
 .labedit{position:absolute;z-index:20;font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 5px;
   border:1px solid var(--accent);border-radius:5px;background:var(--card);color:var(--fg);width:84px}
 
@@ -120,6 +128,8 @@ svg.sheet .draft{stroke:var(--accent);stroke-width:2.2;fill:none;stroke-dasharra
   <span style="width:1px;height:20px;background:var(--line)"></span>
   <button class="btn ghost" id="rotBtn" title="Ruota (R)">⟳</button>
   <button class="btn ghost" id="delBtn" title="Elimina (Canc)">🗑</button>
+  <span style="width:1px;height:20px;background:var(--line)"></span>
+  <button class="btn" id="simBtn">▶ Simula</button>
   <div class="zoom"><button id="zoomOut">−</button><button id="zoomFit" title="Adatta">⤢</button><button id="zoomIn">+</button></div>
   <button class="btn ghost" id="saveBtn">Salva / apri</button>
   <button class="btn ghost" id="clearBtn">Svuota</button>
@@ -191,6 +201,7 @@ const SYM={
   gstep:()=>L(0,0,0,U-7)+L(0,U+7,0,2*U)+R(-7,U-7,14,14),
   ginit:()=>L(0,0,0,U-7)+L(0,U+7,0,2*U)+R(-7,U-7,14,14)+R(-5,U-5,10,10),
   glink:()=>L(0,0,0,2*U)+L(-6,U,6,U),
+  src:()=>L(0,0,0,U-7)+L(0,U+7,0,2*U)+C(0,U,7)+TXT(0,U+3,"~",8),
   plci:()=>plcBox("I"), plco:()=>plcBox("Q"), plccpu:()=>plcBox("CPU"),
   k3:()=>pole("km",3), k4:()=>pole("km",4), sez3:()=>pole("sw",3), mt3:()=>pole("mt",3)
     , diff3:()=>pole("mt",3)+C(2*U+9,U,2.3),
@@ -199,6 +210,7 @@ const SYM={
 };
 // definizione componenti: morsetti in unità di griglia, prefisso sigla
 const DEF={
+  src:{n:"Alimentazione L/N",g:"Alimentazione",t:[[0,0],[0,2]],p:""},
   no:{n:"Contatto NA",g:"Comando",t:[[0,0],[0,2]],p:"S"}, nc:{n:"Contatto NC",g:"Comando",t:[[0,0],[0,2]],p:"S"},
   pno:{n:"Pulsante NA",g:"Comando",t:[[0,0],[0,2]],p:"S"}, pnc:{n:"Pulsante NC",g:"Comando",t:[[0,0],[0,2]],p:"S"},
   pnoe:{n:"Puls. emergenza",g:"Comando",t:[[0,0],[0,2]],p:"S"}, tno:{n:"Contatto timer",g:"Comando",t:[[0,0],[0,2]],p:"KT"},
@@ -263,27 +275,27 @@ function labelPos(c){ // posizione sigla, in mondo, verticale costante
 const svg=$("#svg"), sheetwrap=$("#sheetwrap");
 function setZoom(z){zoom=Math.max(.35,Math.min(2.5,z));svg.setAttribute("width",(W*zoom).toFixed(0));svg.setAttribute("height",(H*zoom).toFixed(0));svg.setAttribute("viewBox",`0 0 ${W} ${H}`);}
 function render(){
+  if(sim) solveNow();
   let g="";
-  // griglia
   g+=`<rect x="0" y="0" width="${W}" height="${H}" fill="var(--sheet)"/>`;
   for(let x=0;x<=COLS;x++) g+=`<line class="${x%5?'gl':'gl0'}" x1="${x*U}" y1="0" x2="${x*U}" y2="${H}"/>`;
   for(let y=0;y<=ROWS;y++) g+=`<line class="${y%5?'gl':'gl0'}" x1="0" y1="${y*U}" x2="${W}" y2="${y*U}"/>`;
-  // fili
-  for(const w of prog.wires) g+=`<polyline class="wire${sel&&sel.k==='w'&&sel.id===w.id?' sel':''}" data-w="${w.id}" points="${w.pts.map(p=>p.join(',')).join(' ')}"/>`;
-  // componenti
+  for(const w of prog.wires){const live=sim&&sim.liveWire&&sim.liveWire.has(w.id);
+    g+=`<polyline class="wire${live?' live':''}${sel&&sel.k==='w'&&sel.id===w.id?' sel':''}" data-w="${w.id}" points="${w.pts.map(p=>p.join(',')).join(' ')}"/>`;}
   for(const c of prog.comps){
-    g+=`<g class="comp${sel&&sel.k==='c'&&sel.id===c.id?' sel':''}" data-c="${c.id}" transform="translate(${c.x},${c.y}) rotate(${c.rot})">`;
+    const live=sim&&sim.liveComp&&sim.liveComp.has(c.id), en=sim&&sim.enComp&&sim.enComp.has(c.id), oper=sim&&sim.operIds&&sim.operIds.has(c.id);
+    g+=`<g class="comp${live?' live':''}${en?' en':''}${oper?' oper':''}${sel&&sel.k==='c'&&sel.id===c.id?' sel':''}" data-c="${c.id}" transform="translate(${c.x},${c.y}) rotate(${c.rot})">`;
     g+=SYM[c.t]();
     for(const [gx,gy] of DEF[c.t].t) g+=`<circle class="term" cx="${gx*U}" cy="${gy*U}" r="1.7"/>`;
     const b=localBox(c.t); g+=`<rect class="hit" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}"/>`;
     g+=`</g>`;
-    if(c.lab){const [lx,ly]=labelPos(c); g+=`<text class="lab${sel&&sel.k==='c'&&sel.id===c.id?' sel':''}" x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}">${esc(c.lab)}</text>`;}
+    if(c.lab){const [lx,ly]=labelPos(c); g+=`<text class="lab${en?' en':''}${sel&&sel.k==='c'&&sel.id===c.id?' sel':''}" x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}">${esc(c.lab)}</text>`;}
   }
-  // anteprima filo
   if(draft&&draft.pts.length){ const pts=draft.pts.slice(); if(hoverPt)pts.push(hoverPt); g+=`<polyline class="draft" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
     draft.pts.forEach(p=>g+=`<circle class="f" cx="${p[0]}" cy="${p[1]}" r="2"/>`); }
   svg.innerHTML=g;
-  save();
+  svg.classList.toggle("sim",!!sim);
+  if(!sim)save();
 }
 function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
@@ -325,6 +337,7 @@ function setTool(t,pt){
 }
 function updateHint(){
   const h=$("#hint");
+  if(sim){ h.textContent="Simulazione · tieni premuti i pulsanti, clicca gli interruttori · verde = attivo · «Ferma» per modificare"; return; }
   if(tool==="place") h.textContent=`Clicca sul foglio per posizionare: ${DEF[placeType].n}. Esc per finire.`;
   else if(tool==="wire") h.textContent=draft?"Clicca per aggiungere un tratto · ri-clicca sullo stesso punto (o doppio clic) per finire · Esc annulla":"Clicca per iniziare un filo (resta sulla griglia)";
   else if(sel) h.textContent="Trascina per spostare · R ruota · Canc elimina";
@@ -334,9 +347,10 @@ function updateHint(){
 // ---------- interazione mouse ----------
 svg.addEventListener("pointerdown",e=>{
   if(e.button!==0)return;
+  if(sim){ simDown(e); return; }
   const [mx,my]=evtPt(e), [sx,sy]=snap(mx,my);
   if(tool==="place"){
-    const c={id:uid(),t:placeType,x:sx,y:sy,rot:0,lab:nextLabel(placeType)};
+    const c={id:uid(),t:placeType,x:sx,y:sy,rot:0,lab:placeType==="src"?"L / N":nextLabel(placeType)};
     prog.comps.push(c); sel={k:"c",id:c.id}; render();
     return;
   }
@@ -364,7 +378,7 @@ svg.addEventListener("pointermove",e=>{
     const [nx,ny]=snap(drag.sx+(mx-drag.ox), drag.sy+(my-drag.oy));
     if(nx!==c.x||ny!==c.y){c.x=nx;c.y=ny;drag.moved=true;render();} }
 });
-function endDrag(e){ if(drag){try{svg.releasePointerCapture(e.pointerId);}catch(_){} drag=null;} }
+function endDrag(e){ if(sim){ if(sim._release){sim.press[sim._release]=false;sim._release=null;render();} return; } if(drag){try{svg.releasePointerCapture(e.pointerId);}catch(_){} drag=null;} }
 svg.addEventListener("pointerup",endDrag);
 svg.addEventListener("pointercancel",endDrag);
 svg.addEventListener("dblclick",e=>{
@@ -387,8 +401,8 @@ function commitLabel(){if(labInput){labInput.c.lab=labInput.inp.value.trim();con
 function closeLabelEdit(){if(labInput){const el=labInput;labInput=null;el.inp.remove();}}
 
 // ---------- comandi ----------
-function rotateSel(){if(sel&&sel.k==="c"){const c=prog.comps.find(k=>k.id===sel.id);if(c){c.rot=(c.rot+90)%360;render();}}}
-function deleteSel(){ if(!sel)return;
+function rotateSel(){if(sim)return;if(sel&&sel.k==="c"){const c=prog.comps.find(k=>k.id===sel.id);if(c){c.rot=(c.rot+90)%360;render();}}}
+function deleteSel(){ if(sim)return; if(!sel)return;
   if(sel.k==="c")prog.comps=prog.comps.filter(c=>c.id!==sel.id);
   else prog.wires=prog.wires.filter(w=>w.id!==sel.id);
   sel=null; render(); updateHint();
@@ -397,7 +411,7 @@ $("#toolSelect").addEventListener("click",()=>setTool("select"));
 $("#toolWire").addEventListener("click",()=>setTool("wire"));
 $("#rotBtn").addEventListener("click",rotateSel);
 $("#delBtn").addEventListener("click",deleteSel);
-$("#palette").addEventListener("click",e=>{const b=e.target.closest(".pitem");if(b)setTool("place",b.dataset.t);});
+$("#palette").addEventListener("click",e=>{if(sim)return;const b=e.target.closest(".pitem");if(b)setTool("place",b.dataset.t);});
 $("#zoomIn").addEventListener("click",()=>setZoom(zoom*1.2));
 $("#zoomOut").addEventListener("click",()=>setZoom(zoom/1.2));
 $("#zoomFit").addEventListener("click",()=>{const s=$("#stage");setZoom(Math.min((s.clientWidth-60)/W,(s.clientHeight-60)/H));});
@@ -406,6 +420,7 @@ $("#palToggle").addEventListener("click",()=>{const p=$("#palette");p.hidden=!p.
 
 document.addEventListener("keydown",e=>{
   if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  if(sim){ if(e.key==="Escape")stopSim(); return; }
   if(e.key==="Escape"){ if(draft){draft=null;render();} setTool("select"); sel=null; render(); updateHint(); }
   else if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); deleteSel(); }
   else if(e.key==="r"||e.key==="R"){ rotateSel(); }
@@ -465,6 +480,91 @@ function importCad(text){
 }
 $("#cadFile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{if(importCad(String(rd.result)))mSave.hidden=true;};rd.readAsText(f,"latin1");e.target.value="";});
 let toastT; function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200);}
+
+// ---------- SIMULAZIONE ----------
+let sim=null, simTimer=null;
+function buildNetlist(){
+  const parent={}; const find=k=>{while(parent[k]!==k){parent[k]=parent[parent[k]];k=parent[k];}return k;};
+  const union=(a,b)=>{a=find(a);b=find(b);if(a!==b)parent[a]=b;}; const add=k=>{if(!(k in parent))parent[k]=k;};
+  const terms=[];
+  prog.comps.forEach(c=>compTerms(c).forEach((pt,i)=>{const k=c.id+":"+i;add(k);terms.push({key:k,pt});}));
+  prog.wires.forEach((w,wi)=>add("w"+wi));
+  const onSeg=(p,a,b)=>{const cr=(b[0]-a[0])*(p[1]-a[1])-(b[1]-a[1])*(p[0]-a[0]); if(Math.abs(cr)>1)return false;
+    return p[0]>=Math.min(a[0],b[0])-1&&p[0]<=Math.max(a[0],b[0])+1&&p[1]>=Math.min(a[1],b[1])-1&&p[1]<=Math.max(a[1],b[1])+1;};
+  const wireHas=(w,p)=>{for(let s=0;s<w.pts.length-1;s++)if(onSeg(p,w.pts[s],w.pts[s+1]))return true;return false;};
+  for(let i=0;i<prog.wires.length;i++)for(let j=i+1;j<prog.wires.length;j++){const A=prog.wires[i],B=prog.wires[j];
+    if(A.pts.some(p=>wireHas(B,p))||B.pts.some(p=>wireHas(A,p)))union("w"+i,"w"+j);}
+  terms.forEach(t=>prog.wires.forEach((w,wi)=>{if(wireHas(w,t.pt))union(t.key,"w"+wi);}));
+  for(let i=0;i<terms.length;i++)for(let j=i+1;j<terms.length;j++) if(terms[i].pt[0]===terms[j].pt[0]&&terms[i].pt[1]===terms[j].pt[1])union(terms[i].key,terms[j].key);
+  return {find};
+}
+function solveNow(){
+  const nl=buildNetlist(), rootOf=(c,i)=>nl.find(c.id+":"+i);
+  let Lr=null,Nr=null; prog.comps.forEach(c=>{if(c.t==="src"){Lr=rootOf(c,0);Nr=rootOf(c,1);}});
+  const coilLabs=new Set(),timerLabs=new Set();
+  prog.comps.forEach(c=>{if(["coil","set","reset"].includes(c.t)&&c.lab)coilLabs.add(c.lab); if(c.t==="coilt"&&c.lab){coilLabs.add(c.lab);timerLabs.add(c.lab);}});
+  sim.ctrlLabs=coilLabs;
+  const coils=sim.coils||{};
+  const ctrlOn=lab=>{ if(timerLabs.has(lab))return !!sim.timerOut[lab]; if(coilLabs.has(lab))return !!coils[lab]; return null; };
+  const operIds=new Set();
+  const contactCond=c=>{const t=c.t;
+    if(t==="pno"||t==="pnoe"){operIds.add(c.id);return !!sim.press[c.id];}
+    if(t==="pnc"){operIds.add(c.id);return !sim.press[c.id];}
+    const on=ctrlOn(c.lab);
+    if(on===null){operIds.add(c.id);const def=(t==="nc"||t==="edgen");return sim.manual[c.id]!==undefined?sim.manual[c.id]:def;}
+    return (t==="nc"||t==="edgen")?!on:on;};
+  const poleCond=c=>{const on=ctrlOn(c.lab); if(on!==null)return on; operIds.add(c.id);
+    const br=["mt3","diff3","sez3"].includes(c.t); return sim.manual[c.id]!==undefined?sim.manual[c.id]:br;};
+  let f=null;
+  for(let it=0;it<50;it++){
+    const par={}; const ff=k=>{if(!(k in par))return k; while(par[k]!==k){par[k]=par[par[k]];k=par[k];}return k;};
+    const u=(a,b)=>{a=ff(a);b=ff(b);if(a!==b)par[a]=b;}; const an=k=>{if(!(k in par))par[k]=k;};
+    prog.comps.forEach(c=>compTerms(c).forEach((p,i)=>an(rootOf(c,i))));
+    if(Lr!=null)an(Lr); if(Nr!=null)an(Nr);
+    prog.comps.forEach(c=>{const t=c.t;
+      if(t==="fuse"||t==="res")u(rootOf(c,0),rootOf(c,1));
+      else if(["no","nc","pno","pnc","pnoe","tno","edgep","edgen"].includes(t)){ if(contactCond(c))u(rootOf(c,0),rootOf(c,1)); }
+      else if(["k3","k4","sez3","mt3","diff3"].includes(t)){ const np=DEF[t].t.length/2; if(poleCond(c))for(let p=0;p<np;p++)u(rootOf(c,p),rootOf(c,np+p)); }
+    });
+    const isLN=(a,b)=>Lr!=null&&Nr!=null&&((ff(a)===ff(Lr)&&ff(b)===ff(Nr))||(ff(a)===ff(Nr)&&ff(b)===ff(Lr)));
+    const nc=Object.assign({},coils); let changed=false;
+    prog.comps.forEach(c=>{
+      if(["coil","set","reset","lamp","horn","cnt"].includes(c.t)){ const en=isLN(rootOf(c,0),rootOf(c,1)); c._en=en;
+        if(c.t==="coil"&&c.lab){if(!!nc[c.lab]!==en)changed=true; nc[c.lab]=en;}
+        if(c.t==="set"&&c.lab&&en){if(!nc[c.lab])changed=true; nc[c.lab]=true;}
+        if(c.t==="reset"&&c.lab&&en){if(nc[c.lab])changed=true; nc[c.lab]=false;}
+      } else if(c.t==="coilt"){c._inp=isLN(rootOf(c,0),rootOf(c,1)); c._en=!!sim.timerOut[c.lab];}
+      else if(c.t==="motor"){let lv=0;for(let i=0;i<3;i++)if(Lr!=null&&ff(rootOf(c,i))===ff(Lr))lv++; c._en=lv>=2;}
+    });
+    Object.keys(nc).forEach(k=>{if(!!coils[k]!==!!nc[k])changed=true;});
+    sim.coils=Object.assign(coils,nc); f=ff;
+    if(!changed) break;
+  }
+  sim.operIds=operIds;
+  const liveWire=new Set(),liveComp=new Set(),enComp=new Set();
+  if(Lr!=null&&f){ const Lf=f(Lr);
+    prog.wires.forEach((w,wi)=>{ if(f(nl.find("w"+wi))===Lf)liveWire.add(w.id); });
+    prog.comps.forEach(c=>{let a=false; compTerms(c).forEach((p,i)=>{if(f(rootOf(c,i))===Lf)a=true;}); if(a)liveComp.add(c.id); if(c._en)enComp.add(c.id);});
+  }
+  sim.liveWire=liveWire; sim.liveComp=liveComp; sim.enComp=enComp;
+}
+function startSim(){
+  if(!prog.comps.some(c=>c.t==="src")){toast("Metti un'«Alimentazione» (prima voce della tavolozza) per simulare");return;}
+  closeLabelEdit(); setTool("select"); sel=null; draft=null;
+  sim={press:{},manual:{},coils:{},timerAcc:{},timerOut:{}};
+  const b=$("#simBtn"); b.textContent="■ Ferma"; b.classList.add("simon");
+  render(); simTimer=setInterval(simTick,120); updateHint();
+}
+function stopSim(){ if(simTimer)clearInterval(simTimer); simTimer=null; sim=null; const b=$("#simBtn"); b.textContent="▶ Simula"; b.classList.remove("simon"); render(); updateHint(); }
+function simTick(){
+  prog.comps.forEach(c=>{ if(c.t==="coilt"&&c.lab){ const pre=3; if(c._inp){sim.timerAcc[c.lab]=Math.min(pre,(sim.timerAcc[c.lab]||0)+0.12);}else{sim.timerAcc[c.lab]=0;} sim.timerOut[c.lab]=(sim.timerAcc[c.lab]||0)>=pre; } });
+  render();
+}
+function simDown(e){ const [mx,my]=evtPt(e); const c=compAt(mx,my); if(!c)return;
+  if(["pno","pnc","pnoe"].includes(c.t)){ sim.press[c.id]=true; sim._release=c.id; render(); }
+  else if(sim.operIds&&sim.operIds.has(c.id)){ const br=["mt3","diff3","sez3","nc","edgen"].includes(c.t); const cur=sim.manual[c.id]!==undefined?sim.manual[c.id]:br; sim.manual[c.id]=!cur; render(); }
+}
+$("#simBtn").addEventListener("click",()=>sim?stopSim():startSim());
 
 // ---------- avvio ----------
 buildPalette();

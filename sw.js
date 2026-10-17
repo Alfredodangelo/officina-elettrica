@@ -1,4 +1,4 @@
-const V='officina-v3';
+const V='officina-v4';
 const ASSETS=['.','index.html','ladder.html','cablata.html','cade.html','editor.html','manifest.webmanifest','icon-192.png','icon-512.png','icon-180.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()).catch(()=>{}))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
