@@ -138,7 +138,8 @@ svg.sheet .draft{stroke:var(--accent);stroke-width:2.2;fill:none;stroke-dasharra
     <h2 id="svTitle">Salva / apri schema</h2>
     <p class="msub">Lo schema si salva da solo nel browser. Copia il testo per conservarlo, incollalo o scegli un file per riaprirlo.</p>
     <div class="field"><label for="svText">Schema (JSON)</label><textarea id="svText" rows="6" spellcheck="false"></textarea></div>
-    <div class="field" style="margin-top:10px"><label for="svFile">Apri da file</label><input id="svFile" type="file" accept=".json,.txt,application/json,text/plain"></div>
+    <div class="field" style="margin-top:10px"><label for="svFile">Apri da file (formato editor)</label><input id="svFile" type="file" accept=".json,.txt,application/json,text/plain"></div>
+    <div class="field" style="margin-top:10px"><label for="cadFile">Apri uno schema di CADe SIMU (.cad)</label><input id="cadFile" type="file" accept=".cad,.txt"></div>
     <div class="mact">
       <button class="btn ghost" id="svCopy">Copia</button>
       <button class="btn ghost" id="svLoad">Carica dal testo</button>
@@ -169,17 +170,30 @@ function contact(px,kind){ // verticale, altezza 2U; morsetti a (px,0) e (px,2U)
   if(kind==="sw") o+=L(px-2,2*U,px+2.5,2*U);
   return o;
 }
+function act(){return L(6,U,11,U)+`<rect class="f" x="10.5" y="${U-2.5}" width="2" height="5"/>`;}
+function mush(){return L(6,U,10,U)+`<path class="sym" d="M10 ${U-3.5} a3.5 3.5 0 0 1 0 7"/>`;}
+function coilBox(t){return L(0,0,0,U-6)+L(0,U+6,0,2*U)+R(-6,U-6,12,12)+(t?TXT(0,U+2.5,t,6):"");}
+function plcBox(t){return L(0,0,0,U-9)+L(0,U+9,0,2*U)+R(-10,U-9,20,18)+TXT(0,U+2.5,t,t.length>1?5:7);}
+function pole(kind,n){let s="";for(let i=0;i<n;i++)s+=contact(i*U,kind);
+  const y=kind==="sw"?2*U-2:U-4; s+=`<line class="sym" stroke-dasharray="1.5 2" x1="2" y1="${y}" x2="${(n-1)*U+2}" y2="${y}"/>`;return s;}
 const SYM={
   no:()=>contact(0,"no"), nc:()=>contact(0,"nc"),
-  pno:()=>contact(0,"no")+L(6,U,11,U)+`<rect class="f" x="10.5" y="${U-2.5}" width="2" height="5"/>`,
-  pnc:()=>contact(0,"nc")+L(6,U,11,U)+`<rect class="f" x="10.5" y="${U-2.5}" width="2" height="5"/>`,
-  coil:()=>L(0,0,0,U-6)+L(0,U+6,0,2*U)+R(-6,U-6,12,12),
-  coilt:()=>L(0,0,0,U-6)+L(0,U+6,0,2*U)+R(-6,U-6,12,12)+`<path class="sym" d="M-3 ${U} h6 M0 ${U} l2.5 -2"/>`,
+  pno:()=>contact(0,"no")+act(), pnc:()=>contact(0,"nc")+act(), pnoe:()=>contact(0,"no")+mush(),
+  tno:()=>contact(0,"no")+`<path class="sym" d="M6 ${U-2} a4 4 0 0 1 0 4"/>`,
+  coil:()=>coilBox(""), coilt:()=>coilBox("")+`<path class="sym" d="M-3 ${U} h6 M0 ${U} l2.5 -2"/>`,
+  set:()=>coilBox("S"), reset:()=>coilBox("R"),
   lamp:()=>L(0,0,0,U-6)+L(0,U+6,0,2*U)+C(0,U,6)+L(-4.3,U-4.3,4.3,U+4.3)+L(-4.3,U+4.3,4.3,U-4.3),
+  horn:()=>L(0,0,0,U-5)+`<path class="sym" d="M-6 ${U+5} a6 6 0 0 1 12 0 z"/>`,
   fuse:()=>L(0,0,0,2*U)+R(-3,U-7,6,14),
-  k3:()=>contact(0,"km")+contact(U,"km")+contact(2*U,"km")+`<line class="sym" stroke-dasharray="1.5 2" x1="5" y1="${U-4}" x2="${2*U+5}" y2="${U-4}"/>`,
-  mt3:()=>contact(0,"mt")+contact(U,"mt")+contact(2*U,"mt")+`<line class="sym" stroke-dasharray="1.5 2" x1="0" y1="${U-4}" x2="${2*U}" y2="${U-4}"/>`,
-  sez3:()=>contact(0,"sw")+contact(U,"sw")+contact(2*U,"sw")+`<line class="sym" stroke-dasharray="1.5 2" x1="2" y1="${U+4}" x2="${2*U+2}" y2="${U+4}"/>`,
+  res:()=>L(0,0,0,U-7)+L(0,U+7,0,2*U)+R(-3.5,U-7,7,14),
+  edgep:()=>contact(0,"no")+TXT(3,U-2,"P",5), edgen:()=>contact(0,"nc")+TXT(3,U-2,"N",5),
+  cnt:()=>L(0,0,0,U-8)+L(0,U+8,0,2*U)+R(-9,U-8,18,16)+TXT(0,U+2.5,"CTU",5),
+  gstep:()=>L(0,0,0,U-7)+L(0,U+7,0,2*U)+R(-7,U-7,14,14),
+  ginit:()=>L(0,0,0,U-7)+L(0,U+7,0,2*U)+R(-7,U-7,14,14)+R(-5,U-5,10,10),
+  glink:()=>L(0,0,0,2*U)+L(-6,U,6,U),
+  plci:()=>plcBox("I"), plco:()=>plcBox("Q"), plccpu:()=>plcBox("CPU"),
+  k3:()=>pole("km",3), k4:()=>pole("km",4), sez3:()=>pole("sw",3), mt3:()=>pole("mt",3)
+    , diff3:()=>pole("mt",3)+C(2*U+9,U,2.3),
   motor:()=>L(0,0,U,24)+L(U,0,U,24)+L(2*U,0,U,24)+C(U,40,16)+TXT(U,43,"M",15)+TXT(U,53,"3~",7),
   transf:()=>L(0,0,0,10)+L(0,3*U-10,0,3*U)+`<path class="sym" d="M0 10 q6 3 0 6 q6 3 0 6 q6 3 0 6"/><path class="sym" d="M0 ${3*U-28} q-6 3 0 6 q-6 3 0 6 q-6 3 0 6"/>`
 };
@@ -187,22 +201,30 @@ const SYM={
 const DEF={
   no:{n:"Contatto NA",g:"Comando",t:[[0,0],[0,2]],p:"S"}, nc:{n:"Contatto NC",g:"Comando",t:[[0,0],[0,2]],p:"S"},
   pno:{n:"Pulsante NA",g:"Comando",t:[[0,0],[0,2]],p:"S"}, pnc:{n:"Pulsante NC",g:"Comando",t:[[0,0],[0,2]],p:"S"},
+  pnoe:{n:"Puls. emergenza",g:"Comando",t:[[0,0],[0,2]],p:"S"}, tno:{n:"Contatto timer",g:"Comando",t:[[0,0],[0,2]],p:"KT"},
   coil:{n:"Bobina",g:"Comando",t:[[0,0],[0,2]],p:"KM"}, coilt:{n:"Bobina timer",g:"Comando",t:[[0,0],[0,2]],p:"KT"},
-  lamp:{n:"Lampada",g:"Comando",t:[[0,0],[0,2]],p:"H"},
+  lamp:{n:"Lampada",g:"Comando",t:[[0,0],[0,2]],p:"H"}, horn:{n:"Sirena",g:"Comando",t:[[0,0],[0,2]],p:"HA"},
   k3:{n:"Contattore 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"KM"},
+  k4:{n:"Contattore 4P",g:"Potenza",t:[[0,0],[1,0],[2,0],[3,0],[0,2],[1,2],[2,2],[3,2]],p:"KM"},
+  sez3:{n:"Sezionatore 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"QS"},
   mt3:{n:"Magnetotermico 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"Q"},
-  sez3:{n:"Sezionatore 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"S"},
-  fuse:{n:"Fusibile",g:"Potenza",t:[[0,0],[0,2]],p:"F"},
-  motor:{n:"Motore 3~",g:"Potenza",t:[[0,0],[1,0],[2,0]],p:"M"},
-  transf:{n:"Trasformatore",g:"Potenza",t:[[0,0],[0,3]],p:"T"}
+  diff3:{n:"Differenziale 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"FD"},
+  fuse:{n:"Fusibile",g:"Potenza",t:[[0,0],[0,2]],p:"F"}, res:{n:"Resistenza",g:"Potenza",t:[[0,0],[0,2]],p:"R"},
+  motor:{n:"Motore 3~",g:"Potenza",t:[[0,0],[1,0],[2,0]],p:"M"}, transf:{n:"Trasformatore",g:"Potenza",t:[[0,0],[0,3]],p:"T"},
+  edgep:{n:"Fronte salita",g:"Logica",t:[[0,0],[0,2]],p:"S"}, edgen:{n:"Fronte discesa",g:"Logica",t:[[0,0],[0,2]],p:"S"},
+  set:{n:"Set",g:"Logica",t:[[0,0],[0,2]],p:"M"}, reset:{n:"Reset",g:"Logica",t:[[0,0],[0,2]],p:"M"},
+  cnt:{n:"Contatore",g:"Logica",t:[[0,0],[0,2]],p:"C"},
+  gstep:{n:"Passo GRAFCET",g:"GRAFCET",t:[[0,0],[0,2]],p:"X"}, ginit:{n:"Passo iniziale",g:"GRAFCET",t:[[0,0],[0,2]],p:"X"},
+  glink:{n:"Transizione",g:"GRAFCET",t:[[0,0],[0,2]],p:"T"},
+  plci:{n:"Ingresso PLC",g:"PLC",t:[[0,0],[0,2]],p:"I"}, plco:{n:"Uscita PLC",g:"PLC",t:[[0,0],[0,2]],p:"Q"},
+  plccpu:{n:"CPU PLC",g:"PLC",t:[[0,0],[0,2]],p:"CPU"}
 };
 const ORDER=Object.keys(DEF);
-// riquadro locale (per selezione) per tipo
+// riquadro locale (per selezione) per tipo, calcolato dai morsetti
 function localBox(t){
-  if(t==="motor") return {x:-18,y:-6,w:68,h:70};
-  if(t==="transf") return {x:-10,y:-4,w:20,h:3*U+8};
-  if(["k3","mt3","sez3"].includes(t)) return {x:-10,y:-4,w:2*U+20,h:2*U+8};
-  return {x:-11,y:-4,w:22,h:2*U+8};
+  const ts=DEF[t].t, gx=Math.max(...ts.map(p=>p[0])), gy=Math.max(...ts.map(p=>p[1]));
+  if(t==="motor") return {x:-18,y:-6,w:gx*U+36,h:70};
+  return {x:-11,y:-4,w:gx*U+22,h:gy*U+8};
 }
 
 // ---------- stato ----------
@@ -401,6 +423,47 @@ $("#svCopy").addEventListener("click",()=>{const ta=$("#svText");ta.select();(na
 function loadText(txt,src){try{const d=JSON.parse(txt);if(!d||!Array.isArray(d.comps))throw 0;prog=normalize(d);sel=null;render();mSave.hidden=true;toast("Schema caricato "+src);}catch(e){toast("Testo non valido");}}
 $("#svLoad").addEventListener("click",()=>loadText($("#svText").value,"dal testo"));
 $("#svFile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>loadText(String(rd.result),"dal file");rd.readAsText(f);e.target.value="";});
+
+// ---------- importa un file .cad di CADe SIMU ----------
+const CADEMAP={
+ 1000:"motor",1003:"motor",1004:"motor",1005:"motor",1006:"motor",1007:"motor",1050:"res",1051:"res",1052:"transf",3012:"transf",3013:"transf",
+ 2000:"k3",2001:"k3",2002:"k4",2006:"k3",2003:"k3",2004:"sez3",2005:"k4",2007:"k3",
+ 5000:"fuse",5001:"fuse",5002:"fuse",5003:"fuse",5004:"fuse",6002:"fuse",5005:"sez3",5006:"sez3",5007:"sez3",5008:"sez3",5009:"sez3",
+ 6005:"mt3",6006:"mt3",6008:"mt3",6009:"mt3",6010:"mt3",6015:"mt3",6018:"diff3",6019:"sez3",6020:"sez3",
+ 7000:"no",7001:"nc",7002:"no",7003:"no",7004:"tno",7018:"no",7019:"no",7020:"tno",7021:"nc",
+ 8000:"pno",8001:"pnc",8002:"pno",8003:"pno",8004:"pnoe",8005:"pnc",8006:"pnoe",8007:"pno",8008:"no",8009:"nc",8010:"no",8011:"no",8012:"no",8013:"nc",8014:"no",8015:"no",8016:"no",8100:"pno",8101:"lamp",
+ 9000:"coil",9001:"coil",9002:"coil",9004:"coilt",9007:"coilt",9009:"lamp",9010:"horn",9011:"horn",9012:"horn",9013:"horn",9016:"cnt",
+ 10050:"no",10051:"nc",10052:"edgep",10053:"edgen",10060:"coil",10061:"set",10062:"reset",10063:"cnt",10075:"cnt",
+ 10100:"ginit",10101:"gstep",10111:"gstep",10107:"glink",10108:"glink",10112:"glink",10204:"plci",10205:"plco",10206:"plccpu",10207:"plci",10208:"plci"
+};
+const CADWIRE=new Set([4000,4001,4002,4003,4004,4009,4010,4018,4019]);
+function parseCad(text){
+  if(!/^CADe_SIMU/.test(text)) throw new Error("Non sembra un file di CADe SIMU");
+  const body=text.split("$$$")[0], toks=body.split(/(?=\*\d+\*\d+#)/), comps=[],wires=[];
+  for(const t of toks){
+    const m=/^\*(\d+)\*(\d+)#([\s\S]*)$/.exec(t); if(!m)continue;
+    const type=+m[2],rest=m[3], sig=rest.split("#")[0].replace(/^-/,"");
+    const parts=rest.split("*"),nums=[];
+    for(let i=1;i<parts.length;i++){const v=parts[i].split("#")[0];nums.push(/^-?\d+$/.test(v)?parseInt(v,10):null);}
+    if(CADWIRE.has(type)){ if(nums.length>=12&&nums[8]!=null)wires.push([nums[8],nums[9],nums[10],nums[11]]); }
+    else if(type!==3005&&type!==20000){ if(nums.length>=10&&nums[8]!=null)comps.push({type,sig,x:nums[8],y:nums[9]}); }
+  }
+  return {comps,wires};
+}
+function importCad(text){
+  let d; try{d=parseCad(text);}catch(e){toast(e.message||"File non valido");return false;}
+  const S=p=>Math.round(p/6)*U;      // 6 unità CADe SIMU ≈ 1 cella dell'editor
+  const np={comps:[],wires:[],seq:{}};
+  let skipped=0;
+  for(const c of d.comps){const t=CADEMAP[c.type]; if(!t){skipped++;continue;} np.comps.push({id:uid(),t,x:S(c.x),y:S(c.y),rot:0,lab:c.sig||""});}
+  for(const w of d.wires) np.wires.push({id:uid(),pts:[[S(w[0]),S(w[1])],[S(w[2]),S(w[3])]]});
+  np.comps.forEach(c=>{const m=/^([A-Za-z]+)(\d+)$/.exec(c.lab||"");if(m)np.seq[m[1]]=Math.max(np.seq[m[1]]||0,+m[2]);});
+  if(!np.comps.length&&!np.wires.length){toast("Nessun elemento riconosciuto nel file");return false;}
+  prog=np; sel=null; render();
+  toast("Schema importato"+(skipped?` (${skipped} elementi avanzati non convertiti)`:"")+" — ora modificabile");
+  return true;
+}
+$("#cadFile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{if(importCad(String(rd.result)))mSave.hidden=true;};rd.readAsText(f,"latin1");e.target.value="";});
 let toastT; function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200);}
 
 // ---------- avvio ----------
