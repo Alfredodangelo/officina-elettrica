@@ -1,0 +1,362 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12141a"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><title>Lettore CADe SIMU — Officina Elettrica</title><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}[hidden]{display:none!important}</style></head><body><meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: lettore di schemi .cad — barra in alto, tela di disegno al centro, pannello info/componenti a destra (sotto su telefono) */
+:root{
+  --bg:#e7e9ed; --panel:#f5f6f8; --card:#ffffff; --sheet:#fcfcfa; --inset:#eceef2;
+  --line:#cfd4dc; --grid:#e3e6ec; --ink:#20262f; --sym:#2a3340; --muted:#5c6475;
+  --phase:#c0392b; --accent:#c9740c; --accent-soft:rgba(201,116,12,.14);
+  --sel:#1f7a4d; --sel-soft:rgba(31,122,77,.14);
+  --shadow:0 1px 2px rgba(20,28,45,.07),0 6px 18px rgba(20,28,45,.05);
+  --ui:"Chivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101318; --panel:#161a21; --card:#1c212a; --sheet:#1a1f27; --inset:#13171d;
+  --line:#2b323d; --grid:#242b35; --ink:#e6eaf1; --sym:#c3cbd8; --muted:#8a93a3;
+  --phase:#ef6a54; --accent:#f0a83a; --accent-soft:rgba(240,168,58,.16);
+  --sel:#2fd38a; --sel-soft:rgba(47,211,138,.16);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#101318; --panel:#161a21; --card:#1c212a; --sheet:#1a1f27; --inset:#13171d;
+  --line:#2b323d; --grid:#242b35; --ink:#e6eaf1; --sym:#c3cbd8; --muted:#8a93a3;
+  --phase:#ef6a54; --accent:#f0a83a; --accent-soft:rgba(240,168,58,.16);
+  --sel:#2fd38a; --sel-soft:rgba(47,211,138,.16);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+h1,h2{margin:0;font-weight:700}
+button,input{font-family:inherit;color:inherit}
+.mono{font-family:var(--mono)}
+
+header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;z-index:5}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto;min-width:0}
+.logo{width:34px;height:34px;flex:none;border-radius:8px;background:var(--sym);display:grid;place-items:center}
+.brand h1{font-size:16px;white-space:nowrap}
+.brand p{margin:0;font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;
+  cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:border-color .12s}
+.btn:hover{border-color:var(--muted)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:transparent;color:#2a1800}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn svg{width:14px;height:14px}
+.zoom{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--card)}
+.zoom button{border:0;background:none;padding:7px 11px;font-size:14px;font-weight:700;cursor:pointer;color:var(--ink)}
+.zoom button:hover{background:var(--inset)}
+.zoom button+button{border-left:1px solid var(--line)}
+.panel-toggle{display:none}
+
+.work{flex:1;min-height:0;display:flex}
+.stage{flex:1;min-width:0;overflow:auto;background:
+  linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px),var(--sheet);
+  background-size:24px 24px,24px 24px,100% 100%;display:grid;place-items:center;padding:24px}
+.sheetwrap{background:var(--sheet);box-shadow:var(--shadow);border:1px solid var(--line);border-radius:4px}
+svg.draw{display:block}
+svg.draw .wire{stroke:var(--sym);fill:none;stroke-linecap:round}
+svg.draw .sym{stroke:var(--sym);fill:none;stroke-linecap:round;stroke-linejoin:round}
+svg.draw .symf{fill:var(--sym);stroke:none}
+svg.draw .term{fill:var(--sym)}
+svg.draw .lab{fill:var(--ink);font-family:IBM Plex Mono,monospace;font-weight:600}
+svg.draw .bbox{stroke:var(--line);fill:none;stroke-dasharray:2 2}
+svg.draw g.cmp.sel .sym{stroke:var(--sel)}
+svg.draw g.cmp.sel .symf{fill:var(--sel)}
+svg.draw g.cmp.sel .lab{fill:var(--sel)}
+svg.draw g.cmp.sel .hit{fill:var(--sel-soft)}
+svg.draw .hit{fill:transparent;cursor:pointer}
+
+.side{width:316px;flex:none;border-left:1px solid var(--line);background:var(--panel);overflow:auto;
+  padding-block:14px 40px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+.side h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;font-weight:700}
+.side h2:first-child{margin-top:0}
+.meta{display:grid;grid-template-columns:auto 1fr;gap:3px 10px;font-size:12.5px}
+.meta dt{color:var(--muted)}
+.meta dd{margin:0;font-family:var(--mono);overflow:hidden;text-overflow:ellipsis}
+.counts{display:flex;flex-wrap:wrap;gap:6px}
+.cc{font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.clist{display:flex;flex-direction:column;gap:2px;margin-top:2px}
+.ci{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.ci:hover{background:var(--inset)}
+.ci.sel{background:var(--sel-soft);border-color:color-mix(in srgb,var(--sel) 40%,transparent)}
+.ci b{font-family:var(--mono);font-size:12.5px;min-width:52px}
+.ci .ty{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opts{display:flex;flex-direction:column;gap:7px}
+.opt{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink)}
+.opt input{width:15px;height:15px;accent-color:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin:10px 0 0;line-height:1.5}
+
+.scrim{position:fixed;inset:0;background:rgba(9,13,20,.5);z-index:50;display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(520px,100%);padding:20px;max-height:100%;overflow:auto}
+.modal h2{font-size:16px;margin-bottom:4px}
+.msub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.field textarea{width:100%;font-family:var(--mono);font-size:12px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);resize:vertical}
+.field input[type=file]{width:100%;font-size:13px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
+.mact{display:flex;gap:8px;justify-content:flex-end;margin-top:6px;flex-wrap:wrap}
+.err{color:var(--phase);font-size:12.5px;margin:8px 0 0}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:60;
+  background:var(--ink);color:var(--bg);font-size:13px;font-weight:600;padding:9px 14px;border-radius:10px;box-shadow:var(--shadow);max-width:calc(100% - 32px)}
+
+@media (max-width:820px){
+  .work{flex-direction:column}
+  .side{width:auto;border-left:0;border-top:1px solid var(--line);max-height:44%;padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .panel-toggle{display:inline-flex}
+  .brand p{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#e3e9f2" stroke-width="1.6" stroke-linecap="round">
+        <path d="M3 4h14v12H3zM3 8h4M13 8h4M8 4v3M8 13v3"/><circle cx="8" cy="10" r="2.2"/></svg>
+    </span>
+    <div><h1>Lettore CADe SIMU</h1><p>Apre e disegna i file .cad</p></div>
+  </div>
+  <button class="btn" id="openBtn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 4H4v16h16V8h-8z"/></svg>Apri .cad</button>
+  <div class="zoom" role="group" aria-label="Zoom">
+    <button id="zoomOut" aria-label="Riduci">−</button>
+    <button id="zoomFit" aria-label="Adatta" title="Adatta">⤢</button>
+    <button id="zoomIn" aria-label="Ingrandisci">+</button>
+  </div>
+  <button class="btn panel-toggle" id="sideToggle">Dettagli</button>
+</header>
+
+<div class="work">
+  <div class="stage" id="stage"><div class="sheetwrap" id="sheetwrap"></div></div>
+  <aside class="side" id="side">
+    <h2>Documento</h2>
+    <dl class="meta" id="docmeta"></dl>
+    <h2>Componenti <span class="mono" id="compcount" style="color:var(--muted);font-weight:400"></span></h2>
+    <div class="counts" id="counts"></div>
+    <div class="clist" id="clist"></div>
+    <h2>Vista</h2>
+    <div class="opts">
+      <label class="opt"><input type="checkbox" id="optSig" checked> Sigle dei componenti</label>
+      <label class="opt"><input type="checkbox" id="optBox"> Riquadri dei componenti</label>
+      <label class="opt"><input type="checkbox" id="optTerm"> Pallini dei morsetti</label>
+    </div>
+    <p class="note">Disegno fedele alle coordinate del file. I collegamenti elettrici (chi è connesso a chi) non vengono ancora ricostruiti: per quello servono altri schemi di esempio.</p>
+  </aside>
+</div>
+
+<div class="scrim" id="mOpen" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="openTitle">
+    <h2 id="openTitle">Apri uno schema .cad</h2>
+    <p class="msub">Scegli un file salvato da CADe SIMU, oppure incolla qui il suo contenuto.</p>
+    <div class="field"><label for="fileIn">Dal file</label><input id="fileIn" type="file" accept=".cad,.txt,text/plain"></div>
+    <div class="field"><label for="textIn">Dal testo</label><textarea id="textIn" rows="5" spellcheck="false" placeholder="CADe_SIMU*0*..."></textarea></div>
+    <p class="err" id="openErr" hidden></p>
+    <div class="mact">
+      <button class="btn" id="loadText">Carica dal testo</button>
+      <button class="btn primary" id="openClose">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script id="sample" type="text/plain">Q0FEZV9TSU1VKjAqMzAwNSMtWCMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTIqMzMqMCowKi0xMiotOSoyNCozKjAqMCowKjEqMCowKjAjKjIqMjAwNCMtUzEjIzEjMyM1IzIjNCM2IyMqMSoxKjEqMSoxKjEqMCowKjEyKjQyKjAqMCotMTgqLTMqMTgqMTUqMCowKjAqMSowKjExKjEyIyo2KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo2OSoyNyozMjcqMjcqMCowKjAqMCowKjAqMCowKjAqMSowIyo3KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo2OSozMyozMjcqMzMqMCowKjAqMCowKjAqMCowKjAqMiowIyo4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo2OSozOSozMjcqMzkqMCowKjAqMCowKjAqMCowKjAqMyowIyo5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMio1NCoxMio4NCowKjAqMCowKjAqMCowKjAqMCozKjAjKjEwKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxOCo1NCoxOCo4NCowKjAqMCowKjAqMCowKjAqMCo5KjAjKjExKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNCo1NCoyNCo4NCowKjAqMCowKjAqMCowKjAqMCoxKjAjKjEyKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNCo4NCo1MSo4NCowKjAqMCowKjAqMCowKjAqMCoxKjAjKjEzKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNCo5MCo1MSo5MCowKjAqMCowKjAqMCowKjAqMCo5KjAjKjE0KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNCo5Nio1MSo5NiowKjAqMCowKjAqMCowKjAqMCozKjAjKjE1KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1MSo4NCo1MSozOSowKjAqMCowKjAqMCowKjAqMCoxKjAjKjE2KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1Nyo4NCo1NyozOSowKjAqMCowKjAqMCowKjAqMCo5KjAjKjE3KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo2Myo4NCo2MyozOSowKjAqMCowKjAqMCowKjAqMCozKjAjKjE4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo2MyozOSo2OSozOSowKjAqMCowKjAqMCowKjAqMCozKjAjKjE5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1NyozMyo2OSozMyowKjAqMCowKjAqMCowKjAqMCo5KjAjKjIwKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1MSoyNyo2OSoyNyowKjAqMCowKjAqMCowKjAqMCoxKjAjKjIxKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1MSoyNyo1MSozOSowKjAqMCowKjAqMCowKjAqMCoxKjAjKjIyKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1NyozMyo1NyozOSowKjAqMCowKjAqMCowKjAqMCo5KjAjKjIzKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMio4NCoxMio5NiowKjAqMCowKjAqMCowKjAqMCozKjAjKjI1KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1MSo5Nio2Myo5NiowKjAqMCowKjAqMCowKjAqMCozKjAjKjI2KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo2Myo4NCo2Myo5NiowKjAqMCowKjAqMCowKjAqMCozKjAjKjI3KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1Nyo4NCo1Nyo5MCowKjAqMCowKjAqMCowKjAqMCo5KjAjKjI4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxOCo5MCoyNCo5MCowKjAqMCowKjAqMCowKjAqMCo5KjAjKjI5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxOCo4NCoxOCo5MCowKjAqMCowKjAqMCowKjAqMCo5KjAjKjMwKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo1MSo5MCo1Nyo5MCowKjAqMCowKjAqMCowKjAqMCo5KjAjKjMxKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMio5NioyNCo5NiowKjAqMCowKjAqMCowKjAqMCozKjAjKjMyKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMiozMyoxMio0MiowKjAqMCowKjAqMCowKjAqMCoxMSowIyozMyo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTgqMzMqMTgqNDIqMCowKjAqMCowKjAqMCowKjAqMTIqMCMqMzQqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjI0KjMzKjI0KjQyKjAqMCowKjAqMCowKjAqMCowKjEzKjAjKjM1KjQwMTAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCozMCozMyozMCo0NSowKjAqMCowKjAqMCowKjAqMCoxNCowIyozNio0MDEwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMzAqNDUqMzI3KjQ1KjAqMCowKjAqMCowKjAqMCowKjE0KjAjKjM3KjYwMDkjLVExIyMxIzMjNSMyIzQjNiMjKjEqMSoxKjEqMSoxKjAqMCo4NCo1MSowKjAqLTIxKi0zKjE4KjI0KjAqMCowKjEqMCozKjIjKjM4KjIwMDEjLUtNMSMjMSMzIzUjMiM0IzYjIyoxKjEqMSoxKjEqMSowKjAqODQqOTYqMCowKi0xMiotMyoxOCoxNSowKjAqMCoxKjAqMTUqMTYjKjM5KjIwMDEjLUtNMiMjMSMzIzUjMiM0IzYjIyoxKjEqMSoxKjEqMSowKjAqMTIwKjk2KjAqMCotMTIqLTMqMTgqMTUqMCowKjAqMSowKjE3KjE2Iyo0MCo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqODQqMzkqODQqNTEqMCowKjAqMCowKjAqMCowKjAqMyowIyo0MSo0MDAxIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqODQqMzkqODQqMzkqMCowKjAqMCowKjAqMCowKjAqMyowIyo0Mio0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTAqMzMqOTAqNTEqMCowKjAqMCowKjAqMCowKjAqMiowIyo0Myo0MDAxIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTAqMzMqOTAqMzMqMCowKjAqMCowKjAqMCowKjAqMiowIyo0NCo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTYqMjcqOTYqNTEqMCowKjAqMCowKjAqMCowKjAqMSowIyo0NSo0MDAxIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTYqMjcqOTYqMjcqMCowKjAqMCowKjAqMCowKjAqMSowIyo0Nio0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqODQqNzIqODQqOTAqMCowKjAqMCowKjAqMCowKjAqMTUqMCMqNDcqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjkwKjcyKjkwKjkwKjAqMCowKjAqMCowKjAqMCowKjE2KjAjKjQ4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo5Nio3Mio5Nio5MCowKjAqMCowKjAqMCowKjAqMCoxNyowIyo1MioxMDAwIy1NIyNVMSNWMSNXMSNQRSMjIyMqMSoxKjEqMSowKjAqMCowKjg0KjEyOSowKjAqLTEyKi02KjI0KjI0KjAqMCowKjEqMCo2OSo3MCMqNTMqNDAxMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEwMio0NSoxMDIqMTI5KjAqMCowKjAqMCowKjAqMCowKjE0KjAjKjU0KjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMDIqNDUqMTAyKjQ1KjAqMCowKjAqMCowKjAqMCowKjE0KjAjKjU1KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo4NCo3OCoxMzIqNzgqMCowKjAqMCowKjAqMCowKjAqMTUqMCMqNTYqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjg0Kjc4Kjg0Kjc4KjAqMCowKjAqMCowKjAqMCowKjE1KjAjKjU3KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMzIqNzgqMTMyKjkwKjAqMCowKjAqMCowKjAqMCowKjE1KjAjKjU4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo5MCo4NCoxMjYqODQqMCowKjAqMCowKjAqMCowKjAqMTYqMCMqNTkqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjkwKjg0KjkwKjg0KjAqMCowKjAqMCowKjAqMCowKjE2KjAjKjYwKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxMjYqODQqMTI2KjkwKjAqMCowKjAqMCowKjAqMCowKjE2KjAjKjYxKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo5Nio5MCoxMjAqOTAqMCowKjAqMCowKjAqMCowKjAqMTcqMCMqNjIqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEyMCo5MCoxMjAqOTYqMCowKjAqMCowKjAqMCowKjAqMTcqMCMqNjMqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEyNio5MCoxMjYqOTYqMCowKjAqMCowKjAqMCowKjAqMTYqMCMqNjQqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEzMio5MCoxMzIqOTYqMCowKjAqMCowKjAqMCowKjAqMTUqMCMqNjUqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjg0KjkwKjg0Kjk2KjAqMCowKjAqMCowKjAqMCowKjE1KjAjKjY2KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo5MCo5MCo5MCo5NiowKjAqMCowKjAqMCowKjAqMCoxNiowIyo2Nyo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTYqOTAqOTYqOTYqMCowKjAqMCowKjAqMCowKjAqMTcqMCMqNjgqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjk2KjkwKjk2KjkwKi02Ki0zKjMqMyowKjAqMCowKjAqMTcqMCMqNjkqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjg0KjEwOCo4NCoxMjkqMCowKjAqMCowKjAqMCowKjAqMjMqMCMqNzAqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjkwKjEwOCo5MCoxMjkqMCowKjAqMCowKjAqMCowKjAqMjEqMCMqNzEqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjk2KjEwOCo5NioxMjkqMCowKjAqMCowKjAqMCowKjAqMjIqMCMqNzIqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEyNioxMDgqMTI2KjEyMCowKjAqMCowKjAqMCowKjAqMCoyMSowIyo3Myo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTAqMTIwKjEyNioxMjAqMCowKjAqMCowKjAqMCowKjAqMjEqMCMqNzQqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjkwKjEyMCo5MCoxMjAqMCowKjAqMCowKjAqMCowKjAqMjEqMCMqNzUqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEyMCoxMDgqMTIwKjExNCowKjAqMCowKjAqMCowKjAqMCoyMiowIyo3Nio0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqOTYqMTE0KjEyMCoxMTQqMCowKjAqMCowKjAqMCowKjAqMjIqMCMqNzcqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjk2KjExNCo5NioxMTQqMCowKjAqMCowKjAqMCowKjAqMjIqMCMqNzgqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjEzMioxMDgqMTMyKjEyNiowKjAqMCowKjAqMCowKjAqMCoyMyowIyo3OSo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqODQqMTI2KjEzMioxMjYqMCowKjAqMCowKjAqMCowKjAqMjMqMCMqODAqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjg0KjEyNio4NCoxMjYqMCowKjAqMCowKjAqMCowKjAqMjMqMCMqODEqMzAxMiMtVCM0MDB2ICMxIzIjMyM0IyMjIyoxKjEqMSoxKjAqMCowKjAqMTQxKjYwKjAqMCotMTQqLTMqMTUqMTgqMCowKjAqMSoxKjg4KjkxIyo4Mio2MDAyIy1GMiMjMSMzIzIjNCMjIyMqMSoxKjEqMSowKjAqMCowKjE0MSo0MiowKjAqLTE1Ki0zKjEyKjE1KjAqMCowKjEqMCozKjIjKjgzKjUwMDIjLUYzIyMxIzMjMiM0IyMjIyoxKjEqMSoxKjAqMCowKjAqMTQxKjgxKjAqMCotMTIqLTMqMTIqMTUqMCowKjAqMSowKjI3KjI2Iyo4NCo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTQxKjM5KjE0MSo0MiowKjAqMCowKjAqMCowKjAqMCozKjAjKjg1KjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDEqMzkqMTQxKjM5KjAqMCowKjAqMCowKjAqMCowKjMqMCMqODYqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE0NyozMyoxNDcqNDIqMCowKjAqMCowKjAqMCowKjAqMiowIyo4Nyo0MDAxIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTQ3KjMzKjE0NyozMyowKjAqMCowKjAqMCowKjAqMCoyKjAjKjg4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDEqNTQqMTQxKjYwKjAqMCowKjAqMCowKjAqMCowKjI0KjAjKjg5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDcqNTQqMTQ3KjU3KjAqMCowKjAqMCowKjAqMCowKjI1KjAjKjkwKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDcqNTcqMTUwKjU3KjAqMCowKjAqMCowKjAqMCowKjI1KjAjKjkxKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNTAqNTcqMTUwKjYwKjAqMCowKjAqMCowKjAqMCowKjI1KjAjKjkyKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNTAqNzUqMTUwKjc4KjAqMCowKjAqMCowKjAqMCowKjI2KjAjKjkzKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDcqNzgqMTUwKjc4KjAqMCowKjAqMCowKjAqMCowKjI2KjAjKjk0KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDcqNzgqMTQ3KjgxKjAqMCowKjAqMCowKjAqMCowKjI2KjAjKjk1KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDEqNzUqMTQxKjgxKjAqMCowKjAqMCowKjAqMCowKjI3KjAjKjk2KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDcqOTMqMTQ3Kjk2KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjk3KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDcqOTYqMTU2Kjk2KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjk4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNTYqNDgqMTU2Kjk2KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjk5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNTYqNDgqMzI3KjQ4KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjEwMCo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTQxKjkzKjE0MSoxODYqMCowKjAqMCowKjAqMCowKjAqMjkqMCMqMTAxKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNDEqMTg2KjMyNyoxODYqMCowKjAqMCowKjAqMCowKjAqMjkqMCMqMTAyKjgwMDAjLU9wZW4jIzEzIzE0IyMjIyMjKjEqMSowKjAqMCowKjAqMCoxNjgqNTcqMCowKi0xOCotMyo2KjE1KjAqMCowKjEqMCoyOCozMCMqMTAzKjcwMDAjLUtNMSMjMTMjMTQjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE4MCo1NyowKjAqLTEyKi0zKjYqMTUqMCowKjAqMSowKjI4KjMwIyoxMDQqODAwMSMtU3RvcCMjMTEjMTIjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE2OCo3OCowKjAqLTE4Ki0zKjYqMTUqMCowKjAqMSowKjMwKjMxIyoxMDUqNzAwMSMtS00yIyMxMSMxMiMjIyMjIyoxKjEqMCowKjAqMCowKjAqMTY4Kjk5KjAqMCotMTIqLTMqNioxNSowKjAqMCoxKjAqMzEqMzIjKjEwNio4MDE2Iy1RMSMjOTcjOTgjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE2OCoxMjAqMCowKi0xOCotMyo2KjE1KjAqMCowKjEqMCozMiozMyMqMTA3KjgwMTMjLUZUMSMjMTEjMTIjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE2OCoxMzgqMCowKi0xOCotMyo2KjE1KjAqMCowKjEqMCozMyozNCMqMTA4KjkwMDAjLUtNMSMjQTEjQTIjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE2OCoxNjIqMCowKi0xNSotMyo5KjE1KjAqMCowKjEqMCowKjAjKjEwOSo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTY4KjQ4KjE2OCo1NyowKjAqMCowKjAqMCowKjAqMCoyOCowIyoxMTAqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE2OCo0OCoxNjgqNDgqMCowKjAqMCowKjAqMCowKjAqMjgqMCMqMTExKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxODAqNDgqMTgwKjU3KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjExMio0MDAxIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTgwKjQ4KjE4MCo0OCowKjAqMCowKjAqMCowKjAqMCoyOCowIyoxMTMqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE4MCo2OSoxODAqNzIqMCowKjAqMCowKjAqMCowKjAqMzAqMCMqMTE0KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqNzIqMTgwKjcyKjAqMCowKjAqMCowKjAqMCowKjMwKjAjKjExNSo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTY4KjY5KjE2OCo3OCowKjAqMCowKjAqMCowKjAqMCozMCowIyoxMTYqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE2OCo5MCoxNjgqOTkqMCowKjAqMCowKjAqMCowKjAqMzEqMCMqMTE3KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqMTExKjE2OCoxMjAqMCowKjAqMCowKjAqMCowKjAqMzIqMCMqMTE4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqMTMyKjE2OCoxMzgqMCowKjAqMCowKjAqMCowKjAqMzMqMCMqMTE5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqMTUwKjE2OCoxNjIqMCowKjAqMCowKjAqMCowKjAqMzQqMCMqMTIwKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqMTc0KjE2OCoxODYqMCowKjAqMCowKjAqMCowKjAqMjkqMCMqMTIxKjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqMTg2KjE2OCoxODYqMCowKjAqMCowKjAqMCowKjAqMjkqMCMqMTIyKjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxNjgqNzIqMTY4KjcyKi02Ki0zKjMqMyowKjAqMCowKjAqMzAqMCMqMTIzKjgwMDAjLUNsb3MjIzEzIzE0IyMjIyMjKjEqMSowKjAqMCowKjAqMCoxOTUqNTcqMCowKi0xOCotMyo2KjE1KjAqMCowKjEqMCoyOCozOSMqMTI0KjcwMDAjLUtNMiMjMTMjMTQjIyMjIyMqMSoxKjAqMCowKjAqMCowKjIwNyo1NyowKjAqLTEyKi0zKjYqMTUqMCowKjAqMSowKjI4KjM5IyoxMjUqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSo0OCoxOTUqNTcqMCowKjAqMCowKjAqMCowKjAqMjgqMCMqMTI2KjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoxOTUqNDgqMTk1KjQ4KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjEyNyo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMjA3KjQ4KjIwNyo1NyowKjAqMCowKjAqMCowKjAqMCoyOCowIyoxMjgqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjIwNyo0OCoyMDcqNDgqMCowKjAqMCowKjAqMCowKjAqMjgqMCMqMTI5KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyMDcqNjkqMjA3KjcyKjAqMCowKjAqMCowKjAqMCowKjM5KjAjKjEzMCo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTk1KjcyKjIwNyo3MiowKjAqMCowKjAqMCowKjAqMCozOSowIyoxMzEqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSo2OSoxOTUqNzgqMCowKjAqMCowKjAqMCowKjAqMzkqMCMqMTA0KjgwMDEjLVN0b3AjIzExIzEyIyMjIyMjKjEqMSowKjAqMCowKjAqMCoxOTUqNzgqLTE1MCotNTQqLTE4Ki0zKjYqMTUqMCowKjAqMSowKjM5KjM2IyoxMDUqNzAwMSMtS00xIyMxMSMxMiMjIyMjIyoxKjEqMCowKjAqMCowKjAqMTk1Kjk5Ki0xNTYqLTc1Ki0xMiotMyo2KjE1KjAqMCowKjEqMCozNiozNyMqMTM0KjgwMTMjLUZUMiMjMTEjMTIjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE5NSoxMzgqMCowKi0xOCotMyo2KjE1KjAqMCowKjEqMCozNyozOCMqMTM1KjkwMDAjLUtNMiMjQTEjQTIjIyMjIyMqMSoxKjAqMCowKjAqMCowKjE5NSoxNjIqMCowKi0xNSotMyo5KjE1KjAqMCowKjEqMCowKjAjKjEzNio0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMTk1KjkwKjE5NSo5OSowKjAqMCowKjAqMCowKjAqMCozNiowIyoxMzcqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSoxMTEqMTk1KjEzOCowKjAqMCowKjAqMCowKjAqMCozNyowIyoxMzgqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSoxNTAqMTk1KjE2MiowKjAqMCowKjAqMCowKjAqMCozOCowIyoxMzkqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSoxNzQqMTk1KjE4NiowKjAqMCowKjAqMCowKjAqMCoyOSowIyoxNDAqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSoxODYqMTk1KjE4NiowKjAqMCowKjAqMCowKjAqMCoyOSowIyoxNDEqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjIxOSo0OCoyMTkqNTcqMCowKjAqMCowKjAqMCowKjAqMjgqMCMqMTQyKjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyMTkqNDgqMjE5KjQ4KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjE0Myo3MDA0Iy1LVDEjIzY3IzY4IyMjIyMjKjEqMSowKjAqMCowKjAqMCoyMTkqNTcqMCowKi0xNSotMyo2KjE1KjAqMCowKjEqMCoyOCozOSMqMTQ0KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyMTkqNjkqMjE5KjcyKjAqMCowKjAqMCowKjAqMCowKjM5KjAjKjE0NSo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMjA3KjcyKjIxOSo3MiowKjAqMCowKjAqMCowKjAqMCozOSowIyoxNDYqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjIwNyo3MioyMDcqNzIqLTYqLTMqMyozKjAqMCowKjAqMCozOSowIyoxNDcqODAxMiMtRlQxIyMxMyMxNCMjIyMjIyoxKjEqMCowKjAqMCowKjAqMjM0KjU3KjAqMCotMTgqLTMqNioxNSowKjAqMCoxKjAqMjgqNDAjKjE0OSo5MDA0Iy1LVDEjI0ExI0EyIzAjNSMjIyMqMSoxKjAqMCowKjAqMCowKjIzNCoxNjIqMCowKi0xNSotMyo5KjE1KjAqMCowKjEqMCowKjAjKjE1MCo0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMjM0KjQ4KjIzNCo1NyowKjAqMCowKjAqMCowKjAqMCoyOCowIyoxNTEqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjIzNCo0OCoyMzQqNDgqMCowKjAqMCowKjAqMCowKjAqMjgqMCMqMTUyKjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyMzQqNjkqMjM0KjE2MiowKjAqMCowKjAqMCowKjAqMCo0MCowIyoxNTMqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjIzNCoxNzQqMjM0KjE4NiowKjAqMCowKjAqMCowKjAqMCoyOSowIyoxNTQqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjIzNCoxODYqMjM0KjE4NiowKjAqMCowKjAqMCowKjAqMCoyOSowIyoxNTUqOTAwOSMtSCMjWDEjWDIjMCMjIyMjKjEqMSowKjAqMCowKjAqMCoyNTgqMTYyKjAqMCotMTUqLTMqOSoxNSowKjAqMCoxKjAqMCowIyoxNTYqNzAwMCMtS00xIyMxMyMxNCMjIyMjIyoxKjEqMCowKjAqMCowKjAqMjU4KjU3KjAqMCotMTIqLTMqNioxNSowKjAqMCoxKjAqMjgqNDEjKjE1Nyo3MDAwIy1LTTIjIzEzIzE0IyMjIyMjKjEqMSowKjAqMCowKjAqMCoyNzMqNTcqMCowKi0xMiotMyo2KjE1KjAqMCowKjEqMCoyOCo0MSMqMTU4KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNTgqNDgqMjU4KjU3KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjE1OSo0MDAxIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMjU4KjQ4KjI1OCo0OCowKjAqMCowKjAqMCowKjAqMCoyOCowIyoxNjAqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjI3Myo0OCoyNzMqNTcqMCowKjAqMCowKjAqMCowKjAqMjgqMCMqMTYxKjQwMDEjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNzMqNDgqMjczKjQ4KjAqMCowKjAqMCowKjAqMCowKjI4KjAjKjE2Mio0MDAwIyMjIyMjIyMjIyowKjAqMCowKjAqMCowKjAqMjczKjY5KjI3Myo3MiowKjAqMCowKjAqMCowKjAqMCo0MSowIyoxNjMqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjI1OCo3MioyNzMqNzIqMCowKjAqMCowKjAqMCowKjAqNDEqMCMqMTY0KjQwMDAjIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCoyNTgqNjkqMjU4KjE2MiowKjAqMCowKjAqMCowKjAqMCo0MSowIyoxNjUqNDAwMCMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjI1OCoxNzQqMjU4KjE4NiowKjAqMCowKjAqMCowKjAqMCoyOSowIyoxNjYqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjI1OCoxODYqMjU4KjE4NiowKjAqMCowKjAqMCowKjAqMCoyOSowIyoxNjcqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjI1OCo3MioyNTgqNzIqLTYqLTMqMyozKjAqMCowKjAqMCo0MSowIyoxNjgqNDAwMSMjIyMjIyMjIyMqMCowKjAqMCowKjAqMCowKjE5NSo3MioxOTUqNzIqLTYqLTMqMyozKjAqMCowKjAqMCozOSowIyoxNjkqMjAwMDAjWFhYIyMjIyMjIyMjKjAqMCowKjAqMCowKjAqMCo0Mio0ODYqMCowKjAqMCowKjAqMCowKjAqMCowKjAqMCMkJCQqMSoxKjEqMiozKjAqMSowKjAqMjc5KjIxMCYmJiogICAgICAgICAgICogICAgICAgICAgICogICAgICAgICAgICogICAgICAgICAgICogICAgICAgICAgICAgICAgICAgICAgICAgKiAgICAgICAgICAgICAgICAgICAgICAgICAqMTktTWF5LTIwMjIqMSAgICAgICAgICAqMSAgICAgICAgICAqQ0FEZV9TMSAgICAgICAgICAgICAgKjEqMSoxKjEqMSoxKjEqMSoxKjEqMSoxKjEqMSoqKiQkJCYmJioqKiQkJCYmJg==</script>
+<script>
+"use strict";
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// tipi -> famiglia e nome
+const TYPES={
+ 1000:["motore","motor"], 2001:["contattore (poli di potenza)","pole3"], 2002:["contattore 4 poli","pole3"], 2004:["sezionatore / interrutt. 3P","pole3"],
+ 3005:["origine foglio","skip"], 3012:["trasformatore","transf"], 5000:["fusibile","fuse"], 5002:["fusibile","fuse"], 6002:["fusibile / protezione","fuse"],
+ 6009:["interrutt. automatico (magnetotermico)","pole3"],
+ 7000:["contatto ausiliario NA","cno"], 7001:["contatto ausiliario NC","cnc"], 7004:["contatto timer NA","cno"],
+ 8000:["pulsante NA","pno"], 8001:["pulsante NC","pnc"], 8012:["ausiliario termico NA","cno"], 8013:["ausiliario termico NC","cnc"],
+ 8016:["ausiliario interruttore","cno"], 9000:["bobina contattore","coil"], 9004:["bobina timer","coilt"], 9009:["lampada","lamp"],
+ 4000:["filo","wire"], 4001:["nodo","node"], 4010:["filo","wire"], 20000:["fine foglio","skip"]
+};
+const famName=t=>(TYPES[t]||["tipo "+t,"gen"])[0];
+const fam=t=>(TYPES[t]||["","gen"])[1];
+
+// ---------- parser .cad ----------
+function parseCad(text){
+  if(!/^CADe_SIMU/.test(text)) throw new Error("Non sembra un file CADe SIMU (manca la firma CADe_SIMU).");
+  const body=text.split("$$$")[0];
+  const version=(body.match(/^CADe_SIMU\*\d+\*(\d+)/)||[])[1]||"?";
+  const toks=body.split(/(?=\*\d+\*\d+#)/);
+  const comps=[],wires=[];
+  for(const t of toks){
+    const m=/^\*(\d+)\*(\d+)#([\s\S]*)$/.exec(t); if(!m) continue;
+    const id=+m[1],type=+m[2],rest=m[3];
+    const sig=rest.split("#")[0];
+    const seg=rest.split("##");
+    const terms=seg.length>1?seg[1].split("#").filter(x=>x!==""):[];
+    const parts=rest.split("*"); const nums=[];
+    for(let i=1;i<parts.length;i++){const v=parts[i].split("#")[0]; nums.push(/^-?\d+$/.test(v)?parseInt(v,10):null);}
+    const f=fam(type);
+    if(f==="wire"||f==="node"){
+      if(nums.length>=12&&nums[8]!=null) wires.push({id,type,x1:nums[8],y1:nums[9],x2:nums[10],y2:nums[11]});
+    }else if(f!=="skip"){
+      if(nums.length>=10&&nums[8]!=null)
+        comps.push({id,type,sig:sig.replace(/^-/,""),rawsig:sig,terms,
+          x:nums[8],y:nums[9],bx:nums[12]||0,by:nums[13]||0,ex:nums[14]||0,ey:nums[15]||0});
+    }
+  }
+  // footer: data, nome, foglio
+  let date="",name="",sheet="";
+  const after=text.split("&&&")[1]||"";
+  const dm=after.match(/\*(\d{1,2}-[A-Za-z]{3}-\d{4})\*/); if(dm) date=dm[1];
+  const parts=after.split("*").map(s=>s.trim()).filter(Boolean);
+  for(const p of parts){ if(/^CADe_/.test(p)||(p && !/^\d+$/.test(p) && p.length>2 && !date.includes(p) && !name)) { if(!/\d-[A-Za-z]{3}-\d{4}/.test(p)){ name=p; break; } } }
+  const sm=body.match(/&&&\*?(\d+)\*(\d+)/)||text.match(/\*(\d+)\*(\d+)&&&/);
+  return {version,comps,wires,date,name,raw:text};
+}
+
+// ---------- simboli ----------
+// simboli IEC ancorati al morsetto d'origine (x,y = morsetto in alto); il glifo scende di H
+function polesOf(c){ if(c.type===2002) return 4; if(fam(c.type)==="pole3") return c.terms.length>=8?4:3; return 1; }
+function drawSym(c){
+  const f=fam(c.type), x=c.x, y=c.y;
+  const bx0=x+c.bx, by0=y+c.by, bx1=x+c.ex, by1=y+c.ey;
+  const hx=Math.min(bx0,bx1), hy=Math.min(by0,by1), hw=Math.max(8,Math.abs(bx1-bx0)), hh=Math.max(8,Math.abs(by1-by0));
+  const cx=x+(c.bx+c.ex)/2, cy=y+(c.by+c.ey)/2, R=Math.max(5,Math.min(hw,hh)/2-1);
+  const H=12, g=3, sp=6; let s="";
+  const L=(a,b,d,e)=>`<line class="sym" x1="${a}" y1="${b}" x2="${d}" y2="${e}"/>`;
+  const Cr=(a,b,r)=>`<circle class="sym" cx="${a}" cy="${b}" r="${r}"/>`;
+  const Rr=(a,b,w,h)=>`<rect class="sym" x="${a}" y="${b}" width="${w}" height="${h}" rx="0.6"/>`;
+  const Tm=(a,b)=>`<circle class="term" cx="${a}" cy="${b}" r="1"/>`;
+  const Fb=(a,b,w,h)=>`<rect class="symf" x="${a}" y="${b}" width="${w}" height="${h}"/>`;
+  function contact(px,top,k){ const ym=top+H/2; let o=L(px,top,px,ym-g)+L(px,top+H,px,ym+g)+L(px,ym+g,px+5,ym-g)+Tm(px,top)+Tm(px,top+H);
+    if(k==="nc") o+=L(px+5,ym-g-1,px+5,ym+1.5);
+    if(k==="km") o+=`<path class="sym" d="M${px-1} ${ym+g} q3 1.6 5.5 -1"/>`;
+    if(k==="sw") o+=L(px-1.5,top+H,px+2,top+H);
+    return o; }
+  if(f==="pole3"){ const poles=polesOf(c), k=(c.type===2004)?"sw":"km";
+    for(let i=0;i<poles;i++){ s+=contact(x+i*sp,y,k); if(c.type===6009) s+=Rr(x+i*sp-2,y+H/2+3.5,4,3); }
+    if(poles>1) s+=`<line class="sym" stroke-dasharray="1.5 2" x1="${x+5}" y1="${y+H/2-1}" x2="${x+(poles-1)*sp+5}" y2="${y+H/2-1}"/>`;
+  } else if(f==="motor"){ for(let i=0;i<3;i++) s+=L(x+i*sp,y,x+i*sp,cy-R)+Tm(x+i*sp,y);
+    s+=Cr(cx,cy,R)+`<text class="lab" x="${cx}" y="${(cy+R*0.35).toFixed(1)}" text-anchor="middle" font-size="${R.toFixed(1)}">M</text>`
+      +`<text class="lab" x="${cx}" y="${(cy+R*0.95).toFixed(1)}" text-anchor="middle" font-size="${(R*0.45).toFixed(1)}">3~</text>`;
+  } else if(f==="transf"){ s+=L(cx,y,cx,cy-6)+L(cx,by1,cx,cy+6);
+    for(const dx of [-2.5,2.5]){ let p=`M${cx+dx} ${cy-5}`; for(let k=0;k<4;k++) p+=` q${dx} 1.2 0 2.5`; s+=`<path class="sym" d="${p}"/>`; }
+  } else if(f==="fuse"){ s+=L(x,y,x,y+H)+Rr(x-2.5,y+H/2-4,5,8)+Tm(x,y)+Tm(x,y+H);
+  } else if(f==="cno"){ s+=contact(x,y,"no");
+  } else if(f==="cnc"){ s+=contact(x,y,"nc");
+  } else if(f==="pno"){ s+=contact(x,y,"no")+L(x+5,y+H/2-1,x+9,y+H/2-1)+Fb(x+8,y+H/2-3,2,2);
+  } else if(f==="pnc"){ s+=contact(x,y,"nc")+L(x+5,y+H/2,x+9,y+H/2)+Fb(x+8,y+H/2-1,2,2);
+  } else if(f==="coil"){ s+=L(x,y,x,y+3)+L(x,y+H,x,y+H-3)+Rr(x-4,y+3,8,H-6)+Tm(x,y)+Tm(x,y+H);
+  } else if(f==="coilt"){ s+=L(x,y,x,y+3)+L(x,y+H,x,y+H-3)+Rr(x-4,y+3,8,H-6)+Tm(x,y)+Tm(x,y+H)+`<path class="sym" d="M${x-2.5} ${y+6} h5 M${x} ${y+6} l2 -1.5"/>`;
+  } else if(f==="lamp"){ const ly=y+H/2; s+=L(x,y,x,ly-5)+L(x,y+H,x,ly+5)+Cr(x,ly,5)+L(x-3.5,ly-3.5,x+3.5,ly+3.5)+L(x-3.5,ly+3.5,x+3.5,ly-3.5)+Tm(x,y)+Tm(x,y+H);
+  } else { s+=`<rect class="bbox" x="${hx}" y="${hy}" width="${hw}" height="${hh}"/><text class="lab" x="${cx}" y="${(cy+1.5).toFixed(1)}" text-anchor="middle" font-size="4.5">?</text>`; }
+  const hit={x:hx-1,y:hy-1,w:hw+2,h:hh+2};
+  return {svg:s, hit, lab:{x:hit.x+hit.w+1.5, y:cy+1.4}};
+}
+
+// ---------- render ----------
+let doc=null, zoom=1, selId=null;
+const opt={sig:true,box:false,term:false};
+function bounds(){
+  let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;
+  for(const w of doc.wires){a=Math.min(a,w.x1,w.x2);b=Math.min(b,w.y1,w.y2);c=Math.max(c,w.x1,w.x2);d=Math.max(d,w.y1,w.y2);}
+  for(const k of doc.comps){a=Math.min(a,k.x+k.bx);b=Math.min(b,k.y+k.by);c=Math.max(c,k.x+k.ex);d=Math.max(d,k.y+k.ey);}
+  if(!isFinite(a)){a=0;b=0;c=100;d=100;}
+  return {minX:a,minY:b,maxX:c,maxY:d};
+}
+function render(){
+  const bb=bounds(), m=8;
+  const vx=bb.minX-m, vy=bb.minY-m, vw=(bb.maxX-bb.minX)+2*m, vh=(bb.maxY-bb.minY)+2*m;
+  const SCALE=4; // px per unità a zoom 1
+  const pw=vw*SCALE*zoom, ph=vh*SCALE*zoom;
+  let s=`<svg class="draw" width="${pw.toFixed(0)}" height="${ph.toFixed(0)}" viewBox="${vx} ${vy} ${vw} ${vh}">`;
+  // fili
+  s+='<g>';
+  for(const w of doc.wires) s+=`<line class="wire" stroke-width="1.1" x1="${w.x1}" y1="${w.y1}" x2="${w.x2}" y2="${w.y2}"/>`;
+  s+='</g>';
+  // componenti
+  for(const c of doc.comps){
+    const d=drawSym(c);
+    s+=`<g class="cmp${c.id===selId?' sel':''}" data-id="${c.id}">`;
+    if(opt.box) s+=`<rect class="bbox" x="${d.hit.x}" y="${d.hit.y}" width="${d.hit.w}" height="${d.hit.h}"/>`;
+    s+=d.svg;
+    if(opt.term) s+=`<circle class="term" cx="${c.x}" cy="${c.y}" r="1.3"/>`;
+    if(opt.sig && c.rawsig) s+=`<text class="lab" x="${d.lab.x.toFixed(1)}" y="${d.lab.y.toFixed(1)}" font-size="4.2">${esc(c.sig)}</text>`;
+    s+=`<rect class="hit" x="${d.hit.x}" y="${d.hit.y}" width="${d.hit.w}" height="${d.hit.h}"/>`;
+    s+=`</g>`;
+  }
+  s+=`</svg>`;
+  $('#sheetwrap').innerHTML=s;
+}
+function renderSide(){
+  const dm=$('#docmeta');
+  dm.innerHTML=`<dt>Nome</dt><dd>${esc(doc.name||'—')}</dd><dt>Data</dt><dd>${esc(doc.date||'—')}</dd>`+
+    `<dt>Versione</dt><dd>${esc(doc.version)}</dd><dt>Fili</dt><dd>${doc.wires.length}</dd>`;
+  $('#compcount').textContent='('+doc.comps.length+')';
+  const SHORT={pole3:"potenza 3P",motor:"motore",transf:"trasform.",fuse:"fusibile",cno:"contatto NA",
+    cnc:"contatto NC",pno:"pulsante NA",pnc:"pulsante NC",coil:"bobina",coilt:"bobina timer",lamp:"lampada",gen:"altro"};
+  const byFam={};
+  for(const c of doc.comps){const n=fam(c.type)==="gen"?("tipo "+c.type):(SHORT[fam(c.type)]||"altro");byFam[n]=(byFam[n]||0)+1;}
+  $('#counts').innerHTML=Object.entries(byFam).sort((a,b)=>b[1]-a[1])
+    .map(([n,k])=>`<span class="cc">${esc(n)} ×${k}</span>`).join('');
+  $('#clist').innerHTML=doc.comps.filter(c=>c.rawsig).sort((a,b)=>a.sig.localeCompare(b.sig,undefined,{numeric:true}))
+    .map(c=>`<div class="ci${c.id===selId?' sel':''}" data-id="${c.id}"><b>${esc(c.rawsig)}</b><span class="ty">${esc(famName(c.type))}</span></div>`).join('')
+    || '<p class="note">Nessun componente con sigla.</p>';
+}
+function selectId(id){ selId=(id===selId?null:id); render(); renderSide();
+  if(selId!=null){const el=$(`.ci[data-id="${selId}"]`); if(el) el.scrollIntoView({block:'nearest'});}
+}
+
+// ---------- caricamento ----------
+function load(text,src){
+  let d; try{ d=parseCad(text); }catch(e){ toast(e.message||"File non valido"); return false; }
+  doc=d; selId=null; zoom=1; render(); renderSide(); fit();
+  if(src) toast("Schema caricato "+src);
+  return true;
+}
+function fit(){
+  const bb=bounds(), m=8, vw=(bb.maxX-bb.minX)+2*m, vh=(bb.maxY-bb.minY)+2*m;
+  const stage=$('#stage'); const availW=stage.clientWidth-56, availH=stage.clientHeight-56;
+  const SCALE=4; zoom=Math.max(.2,Math.min(6,Math.min(availW/(vw*SCALE),availH/(vh*SCALE))));
+  render();
+}
+
+// ---------- eventi ----------
+$('#sheetwrap').addEventListener('click',e=>{const g=e.target.closest('.cmp');if(g)selectId(+g.dataset.id);});
+$('#clist').addEventListener('click',e=>{const r=e.target.closest('.ci');if(r)selectId(+r.dataset.id);});
+$('#zoomIn').addEventListener('click',()=>{zoom=Math.min(6,zoom*1.25);render();});
+$('#zoomOut').addEventListener('click',()=>{zoom=Math.max(.2,zoom/1.25);render();});
+$('#zoomFit').addEventListener('click',fit);
+$('#optSig').addEventListener('change',e=>{opt.sig=e.target.checked;render();});
+$('#optBox').addEventListener('change',e=>{opt.box=e.target.checked;render();});
+$('#optTerm').addEventListener('change',e=>{opt.term=e.target.checked;render();});
+$('#sideToggle').addEventListener('click',()=>{$('#side').hidden=!$('#side').hidden;setTimeout(fit,0);});
+const mOpen=$('#mOpen');
+$('#openBtn').addEventListener('click',()=>{$('#openErr').hidden=true;mOpen.hidden=false;});
+$('#openClose').addEventListener('click',()=>mOpen.hidden=true);
+mOpen.addEventListener('click',e=>{if(e.target===mOpen)mOpen.hidden=true;});
+$('#loadText').addEventListener('click',()=>{ if(load($('#textIn').value.trim(),"dal testo")) mOpen.hidden=true; });
+$('#fileIn').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f)return;
+  const rd=new FileReader(); rd.onload=()=>{ if(load(String(rd.result),"dal file")) mOpen.hidden=true; };
+  rd.onerror=()=>toast("Impossibile leggere il file"); rd.readAsText(f,"latin1"); e.target.value='';
+});
+let toastT=null; function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2600);}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')mOpen.hidden=true;});
+window.addEventListener('resize',()=>{clearTimeout(window._rz);window._rz=setTimeout(fit,150);});
+
+// ---------- avvio: file campione incorporato ----------
+function b64decode(b){ try{ return decodeURIComponent(escape(atob(b))); }catch(e){ try{return atob(b);}catch(_){return "";} } }
+const sample=b64decode(($('#sample').textContent||'').trim());
+if(sample) load(sample,""); else { doc={version:"?",comps:[],wires:[],date:"",name:""}; render(); renderSide(); }
+})();
+</script>
+<a href="index.html" aria-label="Torna alla home" style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;width:40px;height:40px;border-radius:50%;background:rgba(20,23,30,.88);color:#f0a83a;border:1px solid rgba(240,168,58,.55);display:grid;place-items:center;text-decoration:none;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">⌂</a><script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script></body></html>

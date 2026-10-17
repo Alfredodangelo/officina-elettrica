@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#12141a">
+<meta name="description" content="Simulatori di elettrotecnica: logica cablata, ladder PLC e lettore di schemi CADe SIMU. Funziona offline.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Officina Elettrica</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;700;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#12141a; --card:#1b2029; --card2:#1f2530; --line:#2b323d; --fg:#e7ebf2; --muted:#8a93a3;
+  --gold:#f0a83a; --gold-soft:rgba(240,168,58,.14); --green:#2fd38a; --green-soft:rgba(47,211,138,.14);
+  --blue:#5ea4ff; --blue-soft:rgba(94,164,255,.14);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.33);
+  --ui:"Chivo",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:light){:root:not([data-theme="dark"]){
+  --bg:#eef0f4; --card:#ffffff; --card2:#f6f7f9; --line:#d3d8e0; --fg:#1a2130; --muted:#5c6475;
+  --gold:#c9740c; --gold-soft:rgba(201,116,12,.12); --green:#12824f; --green-soft:rgba(18,130,79,.12);
+  --blue:#2d6fd6; --blue-soft:rgba(45,111,214,.12);
+  --shadow:0 1px 2px rgba(20,28,45,.08),0 10px 30px rgba(20,28,45,.08); color-scheme:light;
+}}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:
+    radial-gradient(1200px 500px at 50% -10%, color-mix(in srgb,var(--gold) 9%,transparent), transparent 60%),
+    var(--bg);
+  color:var(--fg);font-family:var(--ui);line-height:1.5;-webkit-font-smoothing:antialiased;
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  padding:40px max(18px,env(safe-area-inset-left,0px)) 60px;}
+.wrap{width:100%;max-width:760px}
+header{display:flex;align-items:center;gap:14px;margin-bottom:6px}
+.mark{width:52px;height:52px;border-radius:13px;flex:none;background:#14171e;border:1px solid var(--line);display:grid;place-items:center;box-shadow:var(--shadow)}
+.mark svg{width:30px;height:30px}
+h1{margin:0;font-size:26px;font-weight:900;letter-spacing:-.01em}
+.tag{margin:2px 0 0;color:var(--muted);font-size:13px}
+.lead{margin:22px 0 20px;color:var(--muted);font-size:14.5px;max-width:60ch}
+.grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:620px){.grid{grid-template-columns:1fr 1fr}.wide{grid-column:1/-1}}
+.tile{display:flex;gap:15px;align-items:flex-start;text-decoration:none;color:inherit;background:var(--card);
+  border:1px solid var(--line);border-radius:16px;padding:17px 18px;box-shadow:var(--shadow);
+  transition:transform .12s,border-color .12s}
+.tile:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--accent) 55%,var(--line))}
+.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tile .ic{width:46px;height:46px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
+.tile .ic svg{width:26px;height:26px;stroke:var(--accent);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tile h2{margin:1px 0 3px;font-size:16.5px;font-weight:700}
+.tile p{margin:0;font-size:12.8px;color:var(--muted)}
+.tile .go{margin-left:auto;color:var(--muted);font-size:20px;align-self:center;flex:none}
+.t-cab{--accent:var(--gold);--accent-soft:var(--gold-soft)}
+.t-plc{--accent:var(--green);--accent-soft:var(--green-soft)}
+.t-cad{--accent:var(--blue);--accent-soft:var(--blue-soft)}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
+.btn{border:1px solid var(--line);background:var(--card2);color:var(--fg);border-radius:11px;padding:10px 16px;font-size:14px;
+  font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.btn.primary{background:var(--gold);border-color:transparent;color:#2a1800}
+.btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.hint{color:var(--muted);font-size:12.5px;margin:0}
+.state{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.dot.on{background:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+footer{margin-top:22px;color:var(--muted);font-size:11.5px;line-height:1.6}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="mark" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="#f0a83a"/></svg>
+    </span>
+    <div>
+      <h1>Officina Elettrica</h1>
+      <p class="tag">Elettrotecnica & automazione · funziona offline</p>
+    </div>
+  </header>
+
+  <p class="lead">Tre strumenti in un'app sola: disegna e simula schemi di comando in logica cablata, prova la logica a contatti di un PLC, e apri i tuoi schemi di CADe SIMU su qualsiasi dispositivo.</p>
+
+  <div class="grid">
+    <a class="tile t-cab" href="cablata.html">
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 3v18M20 3v18M8 7h8M8 7v3M16 7v3M9 12h6M12 12v4"/><circle cx="12" cy="17" r="2"/></svg></span>
+      <div><h2>Logica Cablata</h2><p>Schemi di comando con contattori, temporizzatori e motori. Con rilevamento dei cortocircuiti.</p></div>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
+    <a class="tile t-plc" href="ladder.html">
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="M3 4v16M21 4v16M7 8h3M14 8h3M10 8l-1.5-1.5M10 8l-1.5 1.5M6 14h4M14 14h4"/><circle cx="12" cy="14" r="2"/></svg></span>
+      <div><h2>Ladder PLC</h2><p>Schema a contatti con scansione in tempo reale: contatti, bobine, timer e contatori.</p></div>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
+    <a class="tile t-cad wide" href="cade.html">
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4zM16 4v4h4M7 12h10M7 16h7"/></svg></span>
+      <div><h2>Lettore CADe SIMU</h2><p>Apri i file .cad salvati da CADe SIMU e vedi lo schema ridisegnato, su Mac e Windows, senza Windows.</p></div>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
+  </div>
+
+  <div class="bar">
+    <button class="btn primary" id="installBtn" hidden>⤓ Installa l'app</button>
+    <p class="hint" id="installHint">Per installarla: menu del browser → «Installa Officina Elettrica» (o l'icona ⊕ nella barra indirizzi).</p>
+    <span class="state"><span class="dot" id="offdot"></span><span id="offtxt">offline non pronto</span></span>
+  </div>
+
+  <footer>
+    Strumenti originali per lo studio dell'elettrotecnica. Nessun dato lascia il dispositivo.
+  </footer>
+</div>
+
+<script>
+// service worker
+let swReady=false;
+if('serviceWorker' in navigator){
+  addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(reg=>{
+    const mark=()=>{swReady=true;const d=document.getElementById('offdot'),t=document.getElementById('offtxt');if(d){d.classList.add('on');t.textContent='pronta offline';}};
+    if(navigator.serviceWorker.controller) mark();
+    reg.addEventListener&&reg.addEventListener('updatefound',()=>{const w=reg.installing;w&&w.addEventListener('statechange',()=>{if(w.state==='activated'||navigator.serviceWorker.controller)mark();});});
+    navigator.serviceWorker.ready.then(mark);
+  }).catch(()=>{}));
+}
+// prompt d'installazione
+let deferred=null;
+addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;const b=document.getElementById('installBtn'),h=document.getElementById('installHint');b.hidden=false;h.hidden=true;});
+document.getElementById('installBtn').addEventListener('click',async()=>{
+  if(!deferred)return; deferred.prompt(); try{await deferred.userChoice;}catch(e){} deferred=null;
+  document.getElementById('installBtn').hidden=true;
+});
+addEventListener('appinstalled',()=>{const b=document.getElementById('installBtn'),h=document.getElementById('installHint');b.hidden=true;h.textContent='App installata. La trovi tra le tue applicazioni.';h.hidden=false;});
+// se già in modalità app, nascondi i suggerimenti d'installazione
+if(matchMedia('(display-mode: standalone)').matches || navigator.standalone){
+  document.getElementById('installHint').hidden=true;
+}
+</script>
+</body>
+</html>

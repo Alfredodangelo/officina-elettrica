@@ -1,0 +1,904 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12141a"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><title>Ladder PLC — Officina Elettrica</title><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}[hidden]{display:none!important}</style></head><body><meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: banco PLC — barra comandi in alto, editor a segmenti con griglia ladder al centro, pannello I/O a destra (in basso su telefono) */
+:root{
+  --bg:#e7e9ed; --panel:#f5f6f8; --card:#ffffff; --inset:#eceef2; --hover:rgba(58,70,92,.07);
+  --line:#cfd4dc; --wire:#b3bac6; --sym:#3d4556; --rail:#3a4250;
+  --fg:#18202e; --muted:#5c6475;
+  --live:#109a59; --live-soft:rgba(16,154,89,.15);
+  --accent:#c9740c; --accent-soft:rgba(201,116,12,.14);
+  --danger:#c93a35; --danger-soft:rgba(201,58,53,.12);
+  --lamp-green:#22c46d; --lamp-amber:#f4a51c; --lamp-red:#ef4642; --lamp-white:#e3e8f0; --lamp-blue:#3d8bff;
+  --shadow:0 1px 2px rgba(20,28,45,.07),0 6px 18px rgba(20,28,45,.05);
+  --ui:"Chivo",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101318; --panel:#161a21; --card:#1c212a; --inset:#13171d; --hover:rgba(200,215,240,.06);
+  --line:#2b323d; --wire:#3d4552; --sym:#b9c2d1; --rail:#7c8594;
+  --fg:#e6eaf1; --muted:#8a93a3;
+  --live:#2fd38a; --live-soft:rgba(47,211,138,.16);
+  --accent:#f0a83a; --accent-soft:rgba(240,168,58,.15);
+  --danger:#ee5f5a; --danger-soft:rgba(238,95,90,.15);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
+  color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#101318; --panel:#161a21; --card:#1c212a; --inset:#13171d; --hover:rgba(200,215,240,.06);
+  --line:#2b323d; --wire:#3d4552; --sym:#b9c2d1; --rail:#7c8594;
+  --fg:#e6eaf1; --muted:#8a93a3;
+  --live:#2fd38a; --live-soft:rgba(47,211,138,.16);
+  --accent:#f0a83a; --accent-soft:rgba(240,168,58,.15);
+  --danger:#ee5f5a; --danger-soft:rgba(238,95,90,.15);
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden}
+h1,h2,h3{margin:0;font-weight:700;text-wrap:balance}
+button,input,select,textarea{font-family:inherit;color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+/* barra comandi */
+header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;z-index:5}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto;min-width:0}
+.logo{width:34px;height:34px;flex:none;border-radius:8px;background:var(--rail);display:grid;place-items:center}
+.brand h1{font-size:16px;white-space:nowrap}
+.brand p{margin:0;font-size:11px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap}
+.state{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--card)}
+.state .led{width:10px;height:10px;border-radius:50%;background:var(--muted)}
+.state.on{color:var(--live);border-color:color-mix(in srgb,var(--live) 45%,var(--line))}
+.state.on .led{background:var(--live);box-shadow:0 0 0 3px var(--live-soft),0 0 10px var(--live)}
+.meta{font-size:11px;color:var(--muted);min-width:76px}
+
+.btn{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:7px 12px;font-size:13px;font-weight:600;
+  cursor:pointer;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:border-color .12s,background .12s}
+.btn:hover{border-color:var(--muted)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.btn:focus-visible,.ib:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.primary{background:var(--live);border-color:transparent;color:#03271a}
+.btn.stop{background:var(--danger);border-color:transparent;color:#fff}
+.btn.ghost{background:transparent}
+.btn svg{width:14px;height:14px;flex:none}
+.io-toggle{display:none}
+
+/* area di lavoro */
+.work{flex:1;min-height:0;display:flex}
+.editor{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.toolbar{flex:none;display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-block:10px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.toolbar select{font-size:13px;font-weight:600;padding:7px 10px;border-radius:9px;border:1px solid var(--line);background:var(--card)}
+.toolbar .sep{width:1px;height:22px;background:var(--line)}
+.scroll{flex:1;min-height:0;overflow:auto;padding-block:16px 48px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:16px}
+.hint{color:var(--muted);font-size:12px;margin:0 0 14px;max-width:72ch}
+.hint kbd{font-family:var(--mono);font-size:11px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:var(--card)}
+#rungs{display:flex;flex-direction:column;gap:14px}
+
+.rung{background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);min-width:0}
+.rhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 10px;border-bottom:1px solid var(--line)}
+.rnum{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--muted);text-transform:uppercase;white-space:nowrap}
+.rcom{flex:1 1 180px;min-width:0;border:1px solid transparent;background:transparent;border-radius:7px;padding:4px 8px;font-size:13px}
+.rcom:hover{border-color:var(--line)}
+.rcom:focus{outline:none;border-color:var(--accent);background:var(--panel)}
+.rtools{display:flex;gap:4px;flex-wrap:wrap}
+.ib{border:1px solid var(--line);background:var(--panel);border-radius:7px;padding:3px 8px;font-size:11.5px;font-weight:600;cursor:pointer;color:var(--muted);white-space:nowrap}
+.ib:hover{color:var(--fg);border-color:var(--muted)}
+.ib.danger:hover{color:var(--danger);border-color:var(--danger)}
+.rbody{overflow-x:auto;padding:14px 16px 16px}
+.lgrid{position:relative}
+.rail{position:absolute;top:-8px;bottom:-8px;width:5px;border-radius:3px;background:var(--rail);transition:background .1s,box-shadow .1s}
+.rail.pin{background:var(--live);box-shadow:0 0 8px var(--live-soft)}
+
+.cellb,.coilb{position:absolute;border:0;background:none;padding:0;cursor:pointer;border-radius:8px}
+.cellb:hover,.coilb:hover{background:var(--hover)}
+.cellb:focus-visible,.coilb:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.cellb svg,.coilb svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.cellb line,.cellb path,.cellb rect,.coilb line,.coilb path,.coilb rect,.coilb circle{stroke:var(--wire);stroke-width:2;fill:none;stroke-linecap:round}
+.cellb .sym,.coilb .sym{stroke:var(--sym)}
+.symt{fill:var(--sym);font-family:var(--mono);font-size:11px;font-weight:600}
+.cellb.on .sym{stroke:var(--live)} .cellb.on .symt{fill:var(--live)}
+.cellb.pin .wl,.coilb.pin .wl{stroke:var(--live);stroke-width:3}
+.cellb.pout .wr,.coilb.pout .wr{stroke:var(--live);stroke-width:3}
+.coilb.pin .sym{stroke:var(--live)} .coilb.pin .symt{fill:var(--live)}
+.coilb .halo{stroke:none;fill:transparent}
+.coilb.on .halo{fill:var(--live-soft)}
+.lab{position:absolute;top:1px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:10.5px;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;padding:0 2px}
+.adr{position:absolute;bottom:1px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:9.5px;color:var(--muted);
+  white-space:nowrap;pointer-events:none}
+.val{position:absolute;top:1px;right:2px;font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--accent);pointer-events:none}
+.cellb.empty::after,.coilb.empty::after{content:"+";position:absolute;inset:0;display:grid;place-items:center;color:var(--accent);
+  font-size:18px;font-weight:700;opacity:0;transition:opacity .1s}
+.cellb.empty:hover::after,.coilb.empty:hover::after{opacity:1}
+.coilb.empty.main::after{content:"+ bobina";font-size:11px;opacity:.55;color:var(--muted)}
+.coilb.empty.main:hover::after{opacity:1;color:var(--accent)}
+
+.vl{position:absolute;width:16px;margin-left:-8px;border:0;background:none;padding:0;cursor:pointer;z-index:2}
+.vl::before{content:"";position:absolute;left:6px;top:0;bottom:0;border-left:3px dashed transparent;border-radius:2px}
+.vl:hover::before{border-left-color:var(--accent)}
+.vl.act::before{border-left:3px solid var(--wire)}
+.vl.act.pin::before{border-left-color:var(--live)}
+.vl:focus-visible{outline:2px solid var(--accent);border-radius:4px}
+
+/* pannello I/O */
+.io{width:316px;flex:none;border-left:1px solid var(--line);background:var(--panel);overflow:auto;
+  padding-block:14px 40px;padding-left:16px;padding-right:max(16px,env(safe-area-inset-right,0px))}
+.io h2{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:16px 0 8px;font-weight:700;
+  display:flex;justify-content:space-between;align-items:baseline}
+.io h2:first-child{margin-top:0}
+.io h2 small{font-weight:400;letter-spacing:0;text-transform:none;font-size:11px}
+.ilist{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.inbtn,.outrow{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 8px;display:flex;align-items:center;gap:8px;
+  text-align:left;min-width:0}
+.inbtn{cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;position:relative}
+.inbtn.pressed{background:var(--inset);box-shadow:inset 0 2px 4px rgba(0,0,0,.12);transform:translateY(1px)}
+.inbtn .led,.outrow .led{width:11px;height:11px;border-radius:50%;flex:none;background:var(--inset);border:1px solid var(--line)}
+.inbtn.on .led{background:var(--live);border-color:transparent;box-shadow:0 0 0 3px var(--live-soft),0 0 8px var(--live)}
+.txt{min-width:0;display:flex;flex-direction:column;line-height:1.2}
+.txt b{font-family:var(--mono);font-size:12px;font-weight:600}
+.txt b .sy{color:var(--accent);margin-left:4px}
+.txt .ds{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.inbtn.on b{color:var(--live)}
+.inbtn kbd{position:absolute;top:4px;right:5px;font-family:var(--mono);font-size:9px;color:var(--muted);border:1px solid var(--line);
+  border-radius:3px;padding:0 3px;line-height:1.4}
+.vis{width:26px;height:26px;flex:none;display:grid;place-items:center}
+.vis svg{width:26px;height:26px;overflow:visible}
+.bulb{width:16px;height:16px;border-radius:50%;background:var(--inset);border:1px solid var(--line);transition:all .12s}
+.outrow.on .bulb{border-color:transparent;background:var(--lc);box-shadow:0 0 0 3px color-mix(in srgb,var(--lc) 25%,transparent),0 0 12px var(--lc)}
+.mot circle{fill:none;stroke:var(--sym);stroke-width:1.6}
+.mot .rot line{stroke:var(--sym);stroke-width:1.8;stroke-linecap:round}
+.mot .rot{transform-origin:13px 13px;transform-box:view-box}
+.outrow.on .mot circle{stroke:var(--accent)} .outrow.on .mot .rot line{stroke:var(--accent)}
+.outrow.on .mot .rot{animation:spin .8s linear infinite}
+.outrow.on .mot.ccw .rot{animation-direction:reverse}
+.km{width:18px;height:13px;border:1.6px solid var(--sym);border-radius:2px;transition:all .12s}
+.outrow.on .km{background:var(--accent);border-color:var(--accent)}
+.bz path{fill:none;stroke:var(--sym);stroke-width:1.6}
+.outrow.on .bz path{stroke:var(--accent)}
+.outrow.on .bz .wave{animation:pulse .6s ease-in-out infinite}
+.outrow.on b{color:var(--accent)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{opacity:.2}}
+
+.tclist{display:flex;flex-direction:column;gap:6px}
+.tc{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 10px;display:grid;
+  grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center}
+.tc b{font-family:var(--mono);font-size:12px}
+.tc.on b{color:var(--live)}
+.tc .kind{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.tc .bar{grid-column:1/-1;height:6px;border-radius:3px;background:var(--inset);overflow:hidden}
+.tc .fill{height:100%;width:0;background:var(--accent)}
+.tc.on .fill{background:var(--live)}
+.tc .v{font-family:var(--mono);font-size:11px;color:var(--muted);text-align:right}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 8px;border-radius:7px;border:1px solid var(--line);background:var(--card);color:var(--muted)}
+.chip.on{background:var(--live-soft);color:var(--live);border-color:transparent}
+.empty-note{font-size:12px;color:var(--muted);margin:0}
+
+/* modali */
+.scrim{position:fixed;inset:0;background:rgba(9,13,20,.5);z-index:50;display:grid;place-items:center;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(460px,100%);
+  padding:20px;max-height:100%;overflow:auto}
+.modal.wide{width:min(820px,100%)}
+.modal h3{font-size:16px;margin-bottom:4px}
+.msub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
+.types{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;margin-bottom:14px}
+.typ{border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:9px 6px;cursor:pointer;display:flex;
+  flex-direction:column;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted);text-align:center}
+.typ svg{width:46px;height:26px}
+.typ.sel{border-color:var(--accent);background:var(--accent-soft);color:var(--fg)}
+.typ:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.field select,.field input,.field textarea{width:100%;font-size:14px;padding:8px 10px;border-radius:9px;border:1px solid var(--line);background:var(--panel)}
+.field select,.field input{font-family:var(--mono)}
+.field textarea{font-family:var(--mono);font-size:12px;resize:vertical}
+.field :focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.mact{display:flex;gap:8px;align-items:center;margin-top:6px;flex-wrap:wrap}
+.mact .sp{flex:1}
+.btn.dangert{color:var(--danger)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;margin-bottom:16px}
+table.sym{border-collapse:collapse;width:100%;min-width:560px;font-size:12.5px}
+table.sym th{text-align:left;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;
+  padding:7px 8px;background:var(--panel);border-bottom:1px solid var(--line)}
+table.sym td{padding:4px 6px;border-bottom:1px solid var(--line)}
+table.sym tr:last-child td{border-bottom:0}
+table.sym td:first-child{font-family:var(--mono);font-weight:600;padding-left:10px;white-space:nowrap}
+table.sym input[type=text],table.sym select{width:100%;padding:5px 7px;border-radius:7px;border:1px solid var(--line);background:var(--panel);font-size:12.5px}
+table.sym input[type=text]:focus,table.sym select:focus{outline:2px solid var(--accent);border-color:transparent}
+.symsec{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:4px 0 8px}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:60;
+  background:var(--fg);color:var(--bg);font-size:13px;font-weight:600;padding:9px 14px;border-radius:10px;box-shadow:var(--shadow);
+  max-width:calc(100% - 32px)}
+
+@media (max-width:820px){
+  .work{flex-direction:column}
+  .io{width:auto;border-left:0;border-top:1px solid var(--line);max-height:44%;padding-left:max(16px,env(safe-area-inset-left,0px))}
+  .io-toggle{display:inline-flex}
+  .brand p{display:none}
+  .meta{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="#e3e9f2" stroke-width="1.7" stroke-linecap="round">
+        <path d="M1.5 10h4.5M14 10h4.5M6 5v10M9 5v10"/><circle cx="12.2" cy="10" r="2.3"/></svg>
+    </span>
+    <div><h1>Simulatore Ladder PLC</h1><p>Schema a contatti · scansione ciclica</p></div>
+  </div>
+  <div class="state" id="state"><span class="led"></span><span id="stateLbl">Stop</span></div>
+  <span class="meta mono" id="meta">cicli 0</span>
+  <button class="btn" id="stepBtn" title="Esegue un solo ciclo di scansione (100 ms)">Passo</button>
+  <button class="btn primary" id="runBtn"></button>
+  <button class="btn ghost io-toggle" id="ioToggle">I/O</button>
+</header>
+
+<div class="work">
+  <section class="editor">
+    <div class="toolbar">
+      <select id="exSel" aria-label="Carica un esempio">
+        <option value="">Esempi…</option>
+        <option value="marcia">Marcia / arresto con autoritenuta</option>
+        <option value="inversione">Inversione di marcia (teleinvertitore)</option>
+        <option value="stella">Avviamento stella-triangolo</option>
+        <option value="conteggio">Nastro con conteggio pezzi</option>
+        <option value="semaforo">Semaforo</option>
+        <option value="vuoto">Programma vuoto</option>
+      </select>
+      <span class="sep"></span>
+      <button class="btn ghost" id="undoBtn" title="Annulla (Ctrl+Z)">Annulla</button>
+      <button class="btn ghost" id="redoBtn" title="Ripeti (Ctrl+Y)">Ripeti</button>
+      <span class="sep"></span>
+      <button class="btn ghost" id="symBtn">Tabella simboli</button>
+      <button class="btn ghost" id="progBtn">Salva / apri</button>
+      <button class="btn" id="addRung">+ Segmento</button>
+    </div>
+    <div class="scroll" id="scroll">
+      <p class="hint">Tocca una cella per inserire un contatto, la colonna a destra per la bobina. Tocca <b>tra due righe</b> per un collegamento verticale (parallelo). Gli ingressi si comandano dal pannello o con i tasti <kbd>1</kbd>–<kbd>8</kbd>.</p>
+      <div id="rungs"></div>
+    </div>
+  </section>
+
+  <aside class="io" id="io">
+    <h2>Ingressi <small>tieni premuto i pulsanti</small></h2>
+    <div class="ilist" id="inList"></div>
+    <h2>Uscite</h2>
+    <div class="ilist" id="outList"></div>
+    <h2>Timer e contatori</h2>
+    <div class="tclist" id="tcList"></div>
+    <h2>Merker</h2>
+    <div class="chips" id="mList"></div>
+  </aside>
+</div>
+
+<!-- editor elemento -->
+<div class="scrim" id="mEdit" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+    <h3 id="edTitle">Contatto</h3>
+    <p class="msub" id="edSub"></p>
+    <div class="types" id="edTypes"></div>
+    <div class="field" id="edOpF"><label for="edOp" id="edOpL">Operando</label><select id="edOp"></select></div>
+    <div class="field" id="edPreF" hidden><label for="edPre" id="edPreL">Preset</label><input id="edPre" type="number" min="0" step="0.1"></div>
+    <div class="mact">
+      <button class="btn ghost dangert" id="edDel">Rimuovi</button><span class="sp"></span>
+      <button class="btn ghost" id="edCancel">Annulla</button>
+      <button class="btn primary" id="edOk">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<!-- tabella simboli -->
+<div class="scrim" id="mSym" hidden>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="symTitle">
+    <h3 id="symTitle">Tabella simboli</h3>
+    <p class="msub">Dai una sigla e una descrizione a ingressi e uscite. Le sigle compaiono sopra i contatti dello schema.</p>
+    <div id="symBody"></div>
+    <div class="mact"><span class="sp"></span><button class="btn primary" id="symClose">Fatto</button></div>
+  </div>
+</div>
+
+<!-- salva / apri -->
+<div class="scrim" id="mProg" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="progTitle">
+    <h3 id="progTitle">Salva / apri programma</h3>
+    <p class="msub">Il programma si salva da solo in questo browser. Per conservarlo altrove copia il testo qui sotto in un file; per riaprirlo incolla il testo o scegli il file.</p>
+    <div class="field"><label for="progText">Programma</label><textarea id="progText" rows="7" spellcheck="false"></textarea></div>
+    <div class="field"><label for="progFile">Apri da file (.json o .txt)</label><input id="progFile" type="file" accept=".json,.txt,application/json,text/plain"></div>
+    <div class="mact">
+      <button class="btn ghost" id="progCopy">Copia testo</button>
+      <button class="btn ghost" id="progLoad">Carica dal testo</button>
+      <span class="sp"></span>
+      <button class="btn primary" id="progClose">Chiudi</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+"use strict";
+(function(){
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const R8=[0,1,2,3,4,5,6,7];
+const ADDR={
+  I:R8.map(i=>'I0.'+i), Q:R8.map(i=>'Q0.'+i),
+  M:[...R8.map(i=>'M0.'+i),...R8.map(i=>'M1.'+i)],
+  T:R8.map(i=>'T'+i), C:R8.map(i=>'C'+i)
+};
+const ALL=new Set([].concat(ADDR.I,ADDR.Q,ADDR.M,ADDR.T,ADDR.C));
+const K=a=>a[0];
+const CW=72, RH=56, COILW=104, RAILW=5, MAXR=6, MAXC=12;
+const CONTACTS=['no','nc','p','n','w'], COILS=['out','neg','set','rst','ton','tof','ctu'];
+const COIL_OPS={out:'QM',neg:'QM',set:'QM',rst:'QMTC',ton:'T',tof:'T',ctu:'C'};
+
+// ---------- programma ----------
+let prog;
+function newRung(R=2,C=5){
+  return {c:'',R,C,cells:Array.from({length:R},()=>Array(C).fill(null)),
+    v:Array.from({length:Math.max(0,R-1)},()=>Array(C+1).fill(false)),coils:Array(R).fill(null)};
+}
+function validCell(x){return x&&(x.t==='w'||(CONTACTS.includes(x.t)&&ALL.has(x.a)));}
+function validCoil(x){return x&&COILS.includes(x.t)&&ALL.has(x.a)&&COIL_OPS[x.t].includes(K(x.a));}
+function normRung(r){
+  const R=Math.max(1,Math.min(MAXR,(r&&r.R)|0||1)),C=Math.max(1,Math.min(MAXC,(r&&r.C)|0||5));
+  const n=newRung(R,C); n.c=String((r&&r.c)||'');
+  for(let i=0;i<R;i++){
+    for(let j=0;j<C;j++){const x=r.cells&&r.cells[i]&&r.cells[i][j]; if(validCell(x)) n.cells[i][j]=x.t==='w'?{t:'w'}:{t:x.t,a:x.a};}
+    const co=r.coils&&r.coils[i];
+    if(validCoil(co)) n.coils[i]=co.pre!=null?{t:co.t,a:co.a,pre:+co.pre||0}:{t:co.t,a:co.a};
+  }
+  for(let i=0;i<R-1;i++)for(let b=0;b<=C;b++) n.v[i][b]=!!(r.v&&r.v[i]&&r.v[i][b]);
+  return n;
+}
+function normProg(p){
+  if(!p||!Array.isArray(p.rungs)) throw new Error('formato');
+  const sym={};
+  if(p.sym&&typeof p.sym==='object') for(const a in p.sym) if(ALL.has(a)&&p.sym[a]&&typeof p.sym[a]==='object'){
+    const s=p.sym[a]; sym[a]={s:String(s.s||'').slice(0,12),d:String(s.d||'').slice(0,40)};
+    ['mode','kind','color','dir'].forEach(k=>{if(typeof s[k]==='string')sym[a][k]=s[k];});
+    if(s.nc) sym[a].nc=true;
+  }
+  const rungs=p.rungs.slice(0,60).map(normRung);
+  if(!rungs.length) rungs.push(newRung());
+  return {v:2,sym,rungs};
+}
+const sy=a=>prog.sym[a]||{};
+
+// ---------- esempi ----------
+function mk(o){
+  const r=newRung(o.R||1,o.C||4); r.c=o.c||'';
+  for(const k in (o.x||{})){const [i,j]=k.split(',').map(Number); const [t,a]=o.x[k].split(' '); r.cells[i][j]=t==='w'?{t:'w'}:{t,a};}
+  (o.v||[]).forEach(k=>{const [i,b]=k.split(',').map(Number); r.v[i][b]=true;});
+  for(const k in (o.q||{})){const [t,a,p]=o.q[k].split(' '); r.coils[+k]=p!=null?{t,a,pre:+p}:{t,a};}
+  return r;
+}
+const EX={
+  marcia:()=>({sym:{
+    'I0.0':{s:'S1',d:'Marcia'},'I0.1':{s:'S2',d:'Arresto'},'I0.2':{s:'F1',d:'Relè termico',mode:'toggle'},
+    'Q0.0':{s:'KM1',d:'Motore',kind:'motor'},'Q0.1':{s:'H1',d:'Spia marcia',kind:'lamp',color:'green'},
+    'Q0.2':{s:'H2',d:'Blocco termico',kind:'lamp',color:'red'}},
+    rungs:[
+      mk({c:'S1 avvia il motore e KM1 si autoritiene; S2 o il termico F1 lo fermano',R:2,C:4,
+        x:{'0,0':'no I0.0','1,0':'no Q0.0','0,1':'nc I0.1','0,2':'nc I0.2'},v:['0,1'],q:{0:'out Q0.0'}}),
+      mk({c:'Spia di marcia',x:{'0,0':'no Q0.0'},q:{0:'out Q0.1'}}),
+      mk({c:'Spia di blocco termico',x:{'0,0':'no I0.2'},q:{0:'out Q0.2'}})]}),
+  inversione:()=>({sym:{
+    'I0.0':{s:'S0',d:'Arresto'},'I0.1':{s:'S1',d:'Avanti'},'I0.2':{s:'S2',d:'Indietro'},'I0.3':{s:'F1',d:'Relè termico',mode:'toggle'},
+    'Q0.0':{s:'KM1',d:'Rotazione oraria',kind:'motor',dir:'cw'},'Q0.1':{s:'KM2',d:'Rotazione antioraria',kind:'motor',dir:'ccw'},
+    'Q0.2':{s:'H1',d:'Blocco termico',kind:'lamp',color:'red'}},
+    rungs:[
+      mk({c:'Avanti: autoritenuta e interblocco con KM2',R:2,C:5,
+        x:{'0,0':'no I0.1','1,0':'no Q0.0','0,1':'nc I0.0','0,2':'nc Q0.1','0,3':'nc I0.3'},v:['0,1'],q:{0:'out Q0.0'}}),
+      mk({c:'Indietro: autoritenuta e interblocco con KM1',R:2,C:5,
+        x:{'0,0':'no I0.2','1,0':'no Q0.1','0,1':'nc I0.0','0,2':'nc Q0.0','0,3':'nc I0.3'},v:['0,1'],q:{0:'out Q0.1'}}),
+      mk({c:'Spia di blocco termico',C:5,x:{'0,0':'no I0.3'},q:{0:'out Q0.2'}})]}),
+  stella:()=>({sym:{
+    'I0.0':{s:'S0',d:'Arresto'},'I0.1':{s:'S1',d:'Marcia'},'I0.2':{s:'F1',d:'Relè termico',mode:'toggle'},
+    'Q0.0':{s:'KM1',d:'Linea',kind:'motor'},'Q0.1':{s:'KM2',d:'Stella',kind:'coil'},'Q0.2':{s:'KM3',d:'Triangolo',kind:'coil'},
+    'T0':{s:'KT1',d:'Tempo in stella'}},
+    rungs:[
+      mk({c:'Contattore di linea con autoritenuta',R:2,C:4,
+        x:{'0,0':'no I0.1','1,0':'no Q0.0','0,1':'nc I0.0','0,2':'nc I0.2'},v:['0,1'],q:{0:'out Q0.0'}}),
+      mk({c:'Tempo di avviamento in stella: 5 s',x:{'0,0':'no Q0.0'},q:{0:'ton T0 5'}}),
+      mk({c:'Stella finché il tempo non scade',x:{'0,0':'no Q0.0','0,1':'nc T0','0,2':'nc Q0.2'},q:{0:'out Q0.1'}}),
+      mk({c:'Triangolo dopo il tempo, interblocco con la stella',x:{'0,0':'no Q0.0','0,1':'no T0','0,2':'nc Q0.1'},q:{0:'out Q0.2'}})]}),
+  conteggio:()=>({sym:{
+    'I0.0':{s:'S1',d:'Marcia nastro'},'I0.1':{s:'S2',d:'Arresto'},'I0.2':{s:'B1',d:'Sensore pezzo'},'I0.3':{s:'S3',d:'Nuovo lotto'},
+    'Q0.0':{s:'M1',d:'Motore nastro',kind:'motor'},'Q0.1':{s:'H1',d:'Lotto completo',kind:'lamp',color:'amber'},
+    'C0':{s:'CNT',d:'Pezzi per lotto'}},
+    rungs:[
+      mk({c:'Il nastro gira finché il lotto non è completo',R:2,C:4,
+        x:{'0,0':'no I0.0','1,0':'no Q0.0','0,1':'nc I0.1','0,2':'nc C0'},v:['0,1'],q:{0:'out Q0.0'}}),
+      mk({c:'Conta i pezzi che passano davanti al sensore (5 per lotto)',x:{'0,0':'no I0.2','0,1':'no Q0.0'},q:{0:'ctu C0 5'}}),
+      mk({c:'Spia lotto completo',x:{'0,0':'no C0'},q:{0:'out Q0.1'}}),
+      mk({c:'S3 azzera il contatore per un nuovo lotto',x:{'0,0':'no I0.3'},q:{0:'rst C0'}})]}),
+  semaforo:()=>({sym:{
+    'I0.0':{s:'SA1',d:'Semaforo acceso',mode:'toggle'},
+    'Q0.0':{s:'H1',d:'Verde',kind:'lamp',color:'green'},'Q0.1':{s:'H2',d:'Giallo',kind:'lamp',color:'amber'},
+    'Q0.2':{s:'H3',d:'Rosso',kind:'lamp',color:'red'},'T0':{d:'Durata verde'},'T1':{d:'Durata giallo'},'T2':{d:'Durata rosso'}},
+    rungs:[
+      mk({c:'Verde per 5 s; quando il rosso finisce il ciclo riparte',x:{'0,0':'no I0.0','0,1':'nc T2'},q:{0:'ton T0 5'}}),
+      mk({c:'Giallo per 2 s',x:{'0,0':'no T0'},q:{0:'ton T1 2'}}),
+      mk({c:'Rosso per 5 s',x:{'0,0':'no T1'},q:{0:'ton T2 5'}}),
+      mk({c:'Lampada verde',x:{'0,0':'no I0.0','0,1':'nc T0'},q:{0:'out Q0.0'}}),
+      mk({c:'Lampada gialla',x:{'0,0':'no T0','0,1':'nc T1'},q:{0:'out Q0.1'}}),
+      mk({c:'Lampada rossa',x:{'0,0':'no T1'},q:{0:'out Q0.2'}})]}),
+  vuoto:()=>({sym:{},rungs:[newRung(2,5)]})
+};
+
+// ---------- runtime ----------
+const rt={running:false,scans:0,phys:{},bits:{},tim:{},cnt:{},edge:new WeakMap(),ev:new Map(),hold:{},pend:new Set(),last:0,timer:null,ms:0};
+function resetRuntime(){
+  rt.bits={}; ALL.forEach(a=>rt.bits[a]=false); rt.tim={}; rt.cnt={}; rt.edge=new WeakMap(); rt.ev=new Map(); rt.scans=0;
+  applyInputs();
+}
+function applyInputs(){ADDR.I.forEach(a=>{const p=!!rt.phys[a]; rt.bits[a]=sy(a).nc?!p:p;});}
+const tim=a=>rt.tim[a]||(rt.tim[a]={acc:0,pre:0,q:false,kind:'ton'});
+const cnt=a=>rt.cnt[a]||(rt.cnt[a]={acc:0,pre:0,q:false,prev:false});
+function setBit(a,v){if(K(a)!=='I') rt.bits[a]=!!v;}
+
+function conductOf(x){
+  if(x.t==='w') return true;
+  const v=!!rt.bits[x.a];
+  if(x.t==='no') return v;
+  if(x.t==='nc') return !v;
+  const prev=rt.edge.has(x)?rt.edge.get(x):v;
+  return x.t==='p'?(v&&!prev):(!v&&prev);
+}
+function flow(r,cond){
+  const R=r.R,C=r.C,pw=Array.from({length:R},()=>Array(C+1).fill(false)),st=[];
+  for(let i=0;i<R;i++){pw[i][0]=true;st.push(i,0);}
+  while(st.length){
+    const b=st.pop(),i=st.pop();
+    if(b<C&&cond[i][b]&&!pw[i][b+1]){pw[i][b+1]=true;st.push(i,b+1);}
+    if(b>0){
+      if(i>0&&r.v[i-1][b]&&!pw[i-1][b]){pw[i-1][b]=true;st.push(i-1,b);}
+      if(i<R-1&&r.v[i][b]&&!pw[i+1][b]){pw[i+1][b]=true;st.push(i+1,b);}
+    }
+  }
+  return pw;
+}
+function execCoil(co,p,dt){
+  const a=co.a;
+  switch(co.t){
+    case 'out': setBit(a,p); break;
+    case 'neg': setBit(a,!p); break;
+    case 'set': if(p) setBit(a,true); break;
+    case 'rst':
+      if(!p) break;
+      if(K(a)==='T'){const t=tim(a);t.acc=0;t.q=false;}
+      if(K(a)==='C'){const c=cnt(a);c.acc=0;c.q=false;}
+      setBit(a,false); break;
+    case 'ton':{const t=tim(a);t.kind='ton';t.pre=co.pre||0;
+      if(p){t.acc=Math.min(t.pre,t.acc+dt);t.q=t.acc>=t.pre;}else{t.acc=0;t.q=false;}
+      setBit(a,t.q);break;}
+    case 'tof':{const t=tim(a);t.kind='tof';t.pre=co.pre||0;
+      if(p){t.acc=0;t.q=true;}else if(t.q){t.acc=Math.min(t.pre,t.acc+dt);if(t.acc>=t.pre)t.q=false;}
+      setBit(a,t.q);break;}
+    case 'ctu':{const c=cnt(a);c.pre=Math.max(0,Math.round(co.pre||0));
+      if(p&&!c.prev)c.acc++; c.prev=p; c.q=c.acc>=c.pre; setBit(a,c.q);break;}
+  }
+}
+function scan(dt){
+  applyInputs();
+  for(const r of prog.rungs){
+    const cond=[];
+    for(let i=0;i<r.R;i++){const row=[];for(let j=0;j<r.C;j++){const x=r.cells[i][j];row.push(x?conductOf(x):i===0);}cond.push(row);}
+    const pw=flow(r,cond);
+    rt.ev.set(r,{cond,pw});
+    for(let i=0;i<r.R;i++)for(let j=0;j<r.C;j++){const x=r.cells[i][j];if(x&&(x.t==='p'||x.t==='n'))rt.edge.set(x,!!rt.bits[x.a]);}
+    for(let i=0;i<r.R;i++){const co=r.coils[i];if(co)execCoil(co,pw[i][r.C],dt);}
+  }
+  rt.scans++;
+}
+function releasePending(){
+  for(const a of [...rt.pend]) if(rt.scans>=(rt.hold[a]||0)){rt.phys[a]=false;rt.pend.delete(a);}
+  applyInputs();
+}
+function tick(){
+  const now=performance.now(),dt=Math.min(1,(now-rt.last)/1000); rt.last=now;
+  const t0=performance.now(); scan(dt); rt.ms=performance.now()-t0;
+  releasePending(); paint();
+}
+function start(){resetRuntime();rt.running=true;rt.last=performance.now();rt.timer=setInterval(tick,50);runUI();paint();}
+function stop(){
+  rt.running=false;clearInterval(rt.timer);rt.timer=null;
+  ADDR.Q.forEach(a=>rt.bits[a]=false); rt.ev=new Map(); rt.pend.forEach(a=>rt.phys[a]=false); rt.pend.clear();
+  applyInputs(); runUI(); paint();
+}
+function step(){if(rt.running)return;scan(0.1);releasePending();paint();}
+
+// ---------- ingressi ----------
+function pressInput(a){
+  if((sy(a).mode||'push')==='toggle') rt.phys[a]=!rt.phys[a];
+  else {rt.phys[a]=true;rt.hold[a]=rt.scans+2;rt.pend.delete(a);}
+  applyInputs(); paint();
+}
+function releaseInput(a){
+  if((sy(a).mode||'push')==='toggle'||!rt.phys[a]) return;
+  if(rt.running&&rt.scans<(rt.hold[a]||0)) rt.pend.add(a);
+  else {rt.phys[a]=false;applyInputs();paint();}
+}
+
+// ---------- annulla / ripeti ----------
+const undo=[],redo=[];
+function commit(){undo.push(JSON.stringify(prog));if(undo.length>80)undo.shift();redo.length=0;undoUI();}
+function undoUI(){$('#undoBtn').disabled=!undo.length;$('#redoBtn').disabled=!redo.length;}
+function doUndo(){if(!undo.length)return;redo.push(JSON.stringify(prog));prog=JSON.parse(undo.pop());changed();}
+function doRedo(){if(!redo.length)return;undo.push(JSON.stringify(prog));prog=JSON.parse(redo.pop());changed();}
+function changed(){save();buildLadder();buildIO();paint();undoUI();}
+const KEY='ladder_v2';
+function save(){try{localStorage.setItem(KEY,JSON.stringify(prog));}catch(e){}}
+function load(){try{const s=localStorage.getItem(KEY);if(s){prog=normProg(JSON.parse(s));return true;}}catch(e){}return false;}
+
+// ---------- disegno ----------
+function cellSVG(x,i){
+  if(!x) return i===0?`<svg viewBox="0 0 ${CW} ${RH}"><line class="wl wr" x1="0" y1="28" x2="${CW}" y2="28"/></svg>`:'';
+  if(x.t==='w') return `<svg viewBox="0 0 ${CW} ${RH}"><line class="wl wr" x1="0" y1="28" x2="${CW}" y2="28"/></svg>`;
+  let s=`<svg viewBox="0 0 ${CW} ${RH}"><line class="wl" x1="0" y1="28" x2="27" y2="28"/><line class="wr" x1="45" y1="28" x2="${CW}" y2="28"/>`+
+    `<line class="sym" x1="27" y1="17" x2="27" y2="39"/><line class="sym" x1="45" y1="17" x2="45" y2="39"/>`;
+  if(x.t==='nc') s+=`<line class="sym" x1="30" y1="39" x2="42" y2="17"/>`;
+  if(x.t==='p'||x.t==='n') s+=`<text class="symt" x="36" y="32" text-anchor="middle">${x.t.toUpperCase()}</text>`;
+  s+='</svg>';
+  const n=sy(x.a).s;
+  return s+`<span class="lab">${esc(n||x.a)}</span><span class="adr">${n?x.a:''}</span>`;
+}
+function coilSVG(co){
+  if(!co) return '';
+  let s=`<svg viewBox="0 0 ${COILW} ${RH}"><line class="wl" x1="0" y1="28" x2="35" y2="28"/><line class="wr" x1="69" y1="28" x2="${COILW}" y2="28"/>`;
+  if(co.t==='ton'||co.t==='tof'||co.t==='ctu'){
+    s+=`<rect class="halo" x="35" y="15" width="34" height="26" rx="3"/><rect class="sym" x="35" y="15" width="34" height="26" rx="3"/>`+
+      `<text class="symt" x="52" y="32" text-anchor="middle">${co.t.toUpperCase()}</text>`;
+  }else{
+    s+=`<circle class="halo" cx="52" cy="28" r="14"/><path class="sym" d="M41 16 Q34 28 41 40"/><path class="sym" d="M63 16 Q70 28 63 40"/>`;
+    const L={neg:'/',set:'S',rst:'R'}[co.t]; if(L) s+=`<text class="symt" x="52" y="32" text-anchor="middle">${L}</text>`;
+  }
+  s+='</svg>';
+  const n=sy(co.a).s;
+  const pre=co.t==='ctu'?'PV '+(co.pre||0):(co.t==='ton'||co.t==='tof')?(co.pre||0)+' s':'';
+  return s+`<span class="lab">${esc(n||co.a)}</span><span class="adr">${n?co.a+' ':''}${pre}</span><span class="val" data-val></span>`;
+}
+
+// ---------- costruzione editor ----------
+const elR=$('#rungs');
+function buildLadder(){
+  elR.innerHTML='';
+  prog.rungs.forEach((r,ri)=>{
+    const card=document.createElement('section'); card.className='rung'; card.dataset.ri=ri; card._rung=r;
+    const W=RAILW+r.C*CW+COILW+RAILW, H=r.R*RH;
+    let g=`<div class="rail rail-l" style="left:0"></div>`;
+    for(let i=0;i<r.R;i++){
+      for(let j=0;j<r.C;j++){
+        const x=r.cells[i][j];
+        const lbl=x?(x.t==='w'?'Filo':`${({no:'Contatto NA',nc:'Contatto NC',p:'Fronte di salita',n:'Fronte di discesa'})[x.t]} ${x.a}`):'Cella vuota';
+        g+=`<button type="button" class="cellb${x?'':' empty'}" data-cell data-i="${i}" data-j="${j}" aria-label="${esc(lbl)}" title="${esc(x&&x.a?(sy(x.a).d||''):'')}"
+          style="left:${RAILW+j*CW}px;top:${i*RH}px;width:${CW}px;height:${RH}px">${cellSVG(x,i)}</button>`;
+      }
+      const co=r.coils[i];
+      g+=`<button type="button" class="coilb${co?'':' empty'}${!co&&i===0?' main':''}" data-coil data-i="${i}" aria-label="${co?'Bobina '+co.a:'Aggiungi bobina'}"
+        style="left:${RAILW+r.C*CW}px;top:${i*RH}px;width:${COILW}px;height:${RH}px">${coilSVG(co)}</button>`;
+    }
+    for(let i=0;i<r.R-1;i++)for(let b=1;b<=r.C;b++){
+      g+=`<button type="button" class="vl${r.v[i][b]?' act':''}" data-v data-i="${i}" data-b="${b}" aria-label="Collegamento verticale"
+        title="Collegamento verticale" style="left:${RAILW+b*CW}px;top:${i*RH+RH/2}px;height:${RH}px"></button>`;
+    }
+    g+=`<div class="rail rail-r" style="left:${W-RAILW}px"></div>`;
+    card.innerHTML=`<div class="rhead"><span class="rnum">Segmento ${ri+1}</span>
+      <input class="rcom" id="rc${ri}" placeholder="Commento del segmento…" value="${esc(r.c)}" aria-label="Commento del segmento ${ri+1}">
+      <div class="rtools">
+        <button type="button" class="ib" data-act="up" title="Sposta su" aria-label="Sposta su"${ri===0?' disabled':''}>↑</button>
+        <button type="button" class="ib" data-act="down" title="Sposta giù" aria-label="Sposta giù"${ri===prog.rungs.length-1?' disabled':''}>↓</button>
+        <button type="button" class="ib" data-act="dup">Duplica</button>
+        <button type="button" class="ib" data-act="addrow"${r.R>=MAXR?' disabled':''}>+ riga</button>
+        <button type="button" class="ib" data-act="delrow"${r.R<=1?' disabled':''}>− riga</button>
+        <button type="button" class="ib" data-act="addcol"${r.C>=MAXC?' disabled':''}>+ col</button>
+        <button type="button" class="ib" data-act="delcol"${r.C<=1?' disabled':''}>− col</button>
+        <button type="button" class="ib danger" data-act="del">Elimina</button>
+      </div></div>
+      <div class="rbody"><div class="lgrid" style="width:${W}px;height:${H}px">${g}</div></div>`;
+    elR.appendChild(card);
+  });
+}
+function rungAction(ri,act){
+  const r=prog.rungs[ri]; commit();
+  switch(act){
+    case 'up': if(ri>0)[prog.rungs[ri-1],prog.rungs[ri]]=[prog.rungs[ri],prog.rungs[ri-1]]; break;
+    case 'down': if(ri<prog.rungs.length-1)[prog.rungs[ri+1],prog.rungs[ri]]=[prog.rungs[ri],prog.rungs[ri+1]]; break;
+    case 'dup': prog.rungs.splice(ri+1,0,normRung(JSON.parse(JSON.stringify(r)))); break;
+    case 'addrow': if(r.R<MAXR){r.cells.push(Array(r.C).fill(null));r.coils.push(null);r.v.push(Array(r.C+1).fill(false));r.R++;} break;
+    case 'delrow': if(r.R>1){r.cells.pop();r.coils.pop();r.v.pop();r.R--;} break;
+    case 'addcol': if(r.C<MAXC){r.cells.forEach(row=>row.push(null));r.v.forEach(row=>row.splice(r.C,0,false));r.C++;} break;
+    case 'delcol': if(r.C>1){r.cells.forEach(row=>row.pop());r.v.forEach(row=>row.splice(r.C-1,1));r.C--;} break;
+    case 'del': prog.rungs.splice(ri,1); if(!prog.rungs.length)prog.rungs.push(newRung()); toast('Segmento eliminato. Annulla per recuperarlo.'); break;
+  }
+  changed();
+}
+
+// ---------- pannello I/O ----------
+const LAMP={green:'--lamp-green',amber:'--lamp-amber',red:'--lamp-red',white:'--lamp-white',blue:'--lamp-blue'};
+function outVis(a){
+  const s=sy(a),k=s.kind||'lamp';
+  if(k==='motor') return `<svg class="mot${s.dir==='ccw'?' ccw':''}" viewBox="0 0 26 26"><circle cx="13" cy="13" r="11.5"/>`+
+    `<g class="rot"><line x1="13" y1="13" x2="13" y2="4.5"/><line x1="13" y1="13" x2="20.4" y2="17.2"/><line x1="13" y1="13" x2="5.6" y2="17.2"/></g></svg>`;
+  if(k==='coil') return `<span class="km"></span>`;
+  if(k==='buzzer') return `<svg class="bz" viewBox="0 0 26 26"><path d="M5 17a8 8 0 0 1 16 0z"/><path class="wave" d="M8 7a8 8 0 0 1 10 0M5 4.5a12 12 0 0 1 16 0"/></svg>`;
+  return `<span class="bulb" style="--lc:var(${LAMP[s.color]||LAMP.amber})"></span>`;
+}
+function usedAddr(){
+  const u=new Set();
+  prog.rungs.forEach(r=>{r.cells.forEach(row=>row.forEach(x=>{if(x&&x.a)u.add(x.a);}));r.coils.forEach(co=>{if(co)u.add(co.a);});});
+  return u;
+}
+function buildIO(){
+  $('#inList').innerHTML=ADDR.I.map((a,k)=>{const s=sy(a);
+    const extra=[s.mode==='toggle'?'interruttore':'',s.nc?'cablato NC':''].filter(Boolean).join(' · ');
+    return `<button type="button" class="inbtn" data-in="${a}" aria-label="Ingresso ${a} ${esc(s.s||'')} ${esc(s.d||'')}">
+      <span class="led"></span><span class="txt"><b>${a}${s.s?`<span class="sy">${esc(s.s)}</span>`:''}</b>
+      <span class="ds">${esc(s.d||'—')}${extra?' · '+extra:''}</span></span><kbd>${k+1}</kbd></button>`;}).join('');
+  $('#outList').innerHTML=ADDR.Q.map(a=>{const s=sy(a);
+    return `<div class="outrow" data-out="${a}"><span class="vis">${outVis(a)}</span><span class="txt"><b>${a}${s.s?`<span class="sy">${esc(s.s)}</span>`:''}</b>
+      <span class="ds">${esc(s.d||'—')}</span></span></div>`;}).join('');
+  const u=usedAddr();
+  const tc=[...ADDR.T,...ADDR.C].filter(a=>u.has(a));
+  $('#tcList').innerHTML=tc.length?tc.map(a=>{const s=sy(a);
+    return `<div class="tc" data-tc="${a}"><b>${a}${s.s?` · ${esc(s.s)}`:''}</b><span class="kind"></span><span class="v"></span>
+      <span class="bar"><span class="fill"></span></span></div>`;}).join(''):'<p class="empty-note">Nessun timer o contatore nel programma.</p>';
+  const ms=ADDR.M.filter(a=>u.has(a));
+  $('#mList').innerHTML=ms.length?ms.map(a=>`<span class="chip" data-m="${a}">${a}${sy(a).s?' '+esc(sy(a).s):''}</span>`).join(''):'<p class="empty-note">Nessun merker usato.</p>';
+}
+function valText(co){
+  if((co.t==='ton'||co.t==='tof')&&rt.tim[co.a]) return rt.tim[co.a].acc.toFixed(1)+'s';
+  if(co.t==='ctu'&&rt.cnt[co.a]) return String(rt.cnt[co.a].acc);
+  return '';
+}
+function paint(){
+  prog.rungs.forEach((r,ri)=>{
+    const card=elR.children[ri]; if(!card||card._rung!==r) return;
+    let ev=rt.ev.get(r); if(ev&&(ev.pw.length!==r.R||ev.pw[0].length!==r.C+1)) ev=null;
+    card.querySelectorAll('[data-cell]').forEach(b=>{
+      const i=+b.dataset.i,j=+b.dataset.j,x=r.cells[i][j];
+      b.classList.toggle('on',!!(x&&x.t!=='w'&&conductOf(x)));
+      b.classList.toggle('pin',!!(ev&&ev.pw[i][j]));
+      b.classList.toggle('pout',!!(ev&&ev.pw[i][j]&&ev.cond[i][j]));
+    });
+    card.querySelectorAll('[data-coil]').forEach(b=>{
+      const i=+b.dataset.i,co=r.coils[i],p=!!(ev&&co&&ev.pw[i][r.C]);
+      b.classList.toggle('pin',p); b.classList.toggle('pout',p); b.classList.toggle('on',!!(co&&rt.bits[co.a]));
+      const v=b.querySelector('[data-val]'); if(v) v.textContent=co&&rt.running?valText(co):'';
+    });
+    card.querySelectorAll('[data-v]').forEach(b=>{const i=+b.dataset.i,bb=+b.dataset.b;b.classList.toggle('pin',!!(ev&&r.v[i][bb]&&ev.pw[i][bb]));});
+    card.querySelector('.rail-l').classList.toggle('pin',rt.running);
+    card.querySelector('.rail-r').classList.toggle('pin',!!(ev&&r.coils.some((co,i)=>co&&ev.pw[i][r.C])));
+  });
+  document.querySelectorAll('[data-in]').forEach(b=>{const a=b.dataset.in;b.classList.toggle('pressed',!!rt.phys[a]);b.classList.toggle('on',!!rt.bits[a]);});
+  document.querySelectorAll('[data-out]').forEach(d=>d.classList.toggle('on',!!rt.bits[d.dataset.out]));
+  document.querySelectorAll('[data-tc]').forEach(d=>{
+    const a=d.dataset.tc; let kind='',v='',pct=0;
+    if(K(a)==='T'){const t=rt.tim[a];const co=findCoil(a);kind=t?t.kind.toUpperCase():(co?co.t.toUpperCase():'');
+      const pre=t?t.pre:(co&&co.pre)||0,acc=t?t.acc:0; v=acc.toFixed(1)+' / '+(+pre).toFixed(1)+' s'; pct=pre?acc/pre*100:0;}
+    else{const c=rt.cnt[a];const co=findCoil(a,'ctu');kind='CTU';const pre=c?c.pre:(co&&co.pre)||0,acc=c?c.acc:0;
+      v=acc+' / '+pre; pct=pre?Math.min(100,acc/pre*100):0;}
+    d.querySelector('.kind').textContent=kind; d.querySelector('.v').textContent=v;
+    d.querySelector('.fill').style.width=Math.min(100,pct)+'%'; d.classList.toggle('on',!!rt.bits[a]);
+  });
+  document.querySelectorAll('[data-m]').forEach(c=>c.classList.toggle('on',!!rt.bits[c.dataset.m]));
+  $('#meta').textContent=rt.running?`cicli ${rt.scans}`:(rt.scans?`cicli ${rt.scans}`:'cicli 0');
+}
+function findCoil(a,t){for(const r of prog.rungs)for(const co of r.coils)if(co&&co.a===a&&(!t||co.t===t))return co;return null;}
+function runUI(){
+  $('#state').classList.toggle('on',rt.running); $('#stateLbl').textContent=rt.running?'Run':'Stop';
+  const b=$('#runBtn'); b.className='btn '+(rt.running?'stop':'primary');
+  b.innerHTML=rt.running?'<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>Ferma'
+    :'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>Avvia';
+  $('#stepBtn').disabled=rt.running;
+}
+
+// ---------- editor elemento ----------
+const IC={
+  no:'<path d="M1 13h14M31 13h14M15 4v18M31 4v18"/>',
+  nc:'<path d="M1 13h14M31 13h14M15 4v18M31 4v18M17 22l12-18"/>',
+  p:'<path d="M1 13h14M31 13h14M15 4v18M31 4v18"/><text x="23" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" stroke="none">P</text>',
+  n:'<path d="M1 13h14M31 13h14M15 4v18M31 4v18"/><text x="23" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" stroke="none">N</text>',
+  w:'<path d="M1 13h44"/>',
+  out:'<path d="M1 13h12M33 13h12M17 4Q11 13 17 22M29 4Q35 13 29 22"/>',
+  neg:'<path d="M1 13h12M33 13h12M17 4Q11 13 17 22M29 4Q35 13 29 22M20 20l6-14"/>',
+  set:'<path d="M1 13h12M33 13h12M17 4Q11 13 17 22M29 4Q35 13 29 22"/><text x="23" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" stroke="none">S</text>',
+  rst:'<path d="M1 13h12M33 13h12M17 4Q11 13 17 22M29 4Q35 13 29 22"/><text x="23" y="17" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor" stroke="none">R</text>',
+  ton:'<path d="M1 13h9M36 13h9"/><rect x="10" y="3" width="26" height="20" rx="3"/><text x="23" y="16.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">TON</text>',
+  tof:'<path d="M1 13h9M36 13h9"/><rect x="10" y="3" width="26" height="20" rx="3"/><text x="23" y="16.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">TOF</text>',
+  ctu:'<path d="M1 13h9M36 13h9"/><rect x="10" y="3" width="26" height="20" rx="3"/><text x="23" y="16.5" text-anchor="middle" font-size="8" font-weight="700" fill="currentColor" stroke="none">CTU</text>'
+};
+const NAMES={no:'Contatto NA',nc:'Contatto NC',p:'Fronte salita',n:'Fronte discesa',w:'Filo',
+  out:'Bobina',neg:'Bobina negata',set:'Set',rst:'Reset',ton:'Timer TON',tof:'Timer TOF',ctu:'Contatore CTU'};
+const HELP={no:'Lascia passare corrente quando l’operando vale 1.',nc:'Lascia passare corrente quando l’operando vale 0.',
+  p:'Passa corrente per un solo ciclo quando l’operando passa da 0 a 1.',n:'Passa corrente per un solo ciclo quando l’operando passa da 1 a 0.',
+  w:'Collega le due celle vicine.',out:'L’uscita vale 1 finché il ramo è attraversato da corrente.',
+  neg:'L’uscita vale 1 quando il ramo NON è attraversato da corrente.',set:'Porta l’uscita a 1 e la mantiene, anche quando il ramo si apre.',
+  rst:'Porta a 0 un’uscita, un merker, un timer o un contatore.',ton:'Ritardo all’eccitazione: l’uscita si attiva dopo il tempo impostato.',
+  tof:'Ritardo alla diseccitazione: l’uscita resta attiva per il tempo impostato dopo che il ramo si apre.',
+  ctu:'Conta i fronti di salita del ramo; l’uscita si attiva quando il conteggio raggiunge il preset.'};
+let ed=null;
+function optLabel(a){const s=sy(a);return a+(s.s?' — '+s.s:'')+(s.d?' ('+s.d+')':'');}
+function opsFor(kind,t){
+  if(kind==='cell') return [['Ingressi',ADDR.I],['Uscite',ADDR.Q],['Merker',ADDR.M],['Timer',ADDR.T],['Contatori',ADDR.C]];
+  const o=COIL_OPS[t],g=[];
+  if(o.includes('Q'))g.push(['Uscite',ADDR.Q]); if(o.includes('M'))g.push(['Merker',ADDR.M]);
+  if(o.includes('T'))g.push(['Timer',ADDR.T]); if(o.includes('C'))g.push(['Contatori',ADDR.C]);
+  return g;
+}
+function openEditor(kind,ri,i,j){
+  const r=prog.rungs[ri],cur=kind==='cell'?r.cells[i][j]:r.coils[i];
+  ed={kind,ri,i,j,t:cur?cur.t:(kind==='cell'?'no':'out'),cur,preKind:null};
+  $('#edTitle').textContent=kind==='cell'?'Contatto':'Bobina';
+  $('#edTypes').innerHTML=(kind==='cell'?CONTACTS:COILS).map(t=>`<button type="button" class="typ" data-type="${t}">
+    <svg viewBox="0 0 46 26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">${IC[t]}</svg>${NAMES[t]}</button>`).join('');
+  $('#edDel').hidden=!cur;
+  refreshEditor(cur&&cur.a);
+  $('#mEdit').hidden=false;
+  setTimeout(()=>{const s=$('#edTypes .sel');if(s)s.focus();},0);
+}
+function refreshEditor(keep){
+  const t=ed.t;
+  document.querySelectorAll('#edTypes .typ').forEach(b=>b.classList.toggle('sel',b.dataset.type===t));
+  $('#edSub').textContent=HELP[t];
+  $('#edOpF').hidden=t==='w';
+  const groups=opsFor(ed.kind,t), flat=groups.flatMap(g=>g[1]);
+  $('#edOp').innerHTML=groups.map(([n,arr])=>`<optgroup label="${n}">${arr.map(a=>`<option value="${a}">${esc(optLabel(a))}</option>`).join('')}</optgroup>`).join('');
+  $('#edOp').value=keep&&flat.includes(keep)?keep:flat[0];
+  $('#edOpL').textContent=ed.kind==='cell'?'Operando':(t==='ton'||t==='tof'?'Timer':t==='ctu'?'Contatore':'Operando');
+  const hasPre=t==='ton'||t==='tof'||t==='ctu';
+  $('#edPreF').hidden=!hasPre;
+  if(hasPre){
+    $('#edPreL').textContent=t==='ctu'?'Valore di preset (conteggi)':'Tempo (secondi)';
+    const pk=t==='ctu'?'c':'t';
+    $('#edPre').step=pk==='c'?'1':'0.1'; $('#edPre').min=pk==='c'?'1':'0.1';
+    if(ed.preKind!==pk){
+      const same=ed.cur&&ed.cur.pre!=null&&((ed.cur.t==='ctu')===(pk==='c'));
+      $('#edPre').value=same?ed.cur.pre:(pk==='c'?5:3); ed.preKind=pk;
+    }
+  }
+}
+$('#edTypes').addEventListener('click',e=>{const b=e.target.closest('[data-type]');if(!b)return;ed.t=b.dataset.type;refreshEditor($('#edOp').value);});
+$('#edOk').addEventListener('click',()=>{
+  const r=prog.rungs[ed.ri]; commit();
+  if(ed.kind==='cell') r.cells[ed.i][ed.j]=ed.t==='w'?{t:'w'}:{t:ed.t,a:$('#edOp').value};
+  else{const co={t:ed.t,a:$('#edOp').value};
+    if(ed.t==='ton'||ed.t==='tof') co.pre=Math.max(0.1,+$('#edPre').value||3);
+    if(ed.t==='ctu') co.pre=Math.max(1,Math.round(+$('#edPre').value||5));
+    r.coils[ed.i]=co;}
+  closeModal('#mEdit'); changed();
+});
+$('#edDel').addEventListener('click',()=>{const r=prog.rungs[ed.ri];commit();
+  if(ed.kind==='cell')r.cells[ed.i][ed.j]=null;else r.coils[ed.i]=null; closeModal('#mEdit');changed();});
+$('#edCancel').addEventListener('click',()=>closeModal('#mEdit'));
+
+// ---------- tabella simboli ----------
+let symDirty=false;
+function buildSym(){
+  const row=(a,extra)=>{const s=sy(a);return `<tr><td>${a}</td>
+    <td><input type="text" id="s-${a}-s" data-a="${a}" data-f="s" value="${esc(s.s||'')}" maxlength="12" aria-label="Sigla ${a}"></td>
+    <td><input type="text" id="s-${a}-d" data-a="${a}" data-f="d" value="${esc(s.d||'')}" maxlength="40" aria-label="Descrizione ${a}"></td>${extra?extra(a,s):''}</tr>`;};
+  const sel=(a,f,cur,opts)=>`<select id="s-${a}-${f}" data-a="${a}" data-f="${f}" aria-label="${f} ${a}">${opts.map(([v,l])=>`<option value="${v}"${(cur||opts[0][0])===v?' selected':''}>${l}</option>`).join('')}</select>`;
+  const head=cols=>`<tr><th>Indirizzo</th><th>Sigla</th><th>Descrizione</th>${cols.map(c=>`<th>${c}</th>`).join('')}</tr>`;
+  $('#symBody').innerHTML=
+    `<p class="symsec">Ingressi</p><div class="tablewrap"><table class="sym">${head(['Comando','Cablaggio'])}${ADDR.I.map(a=>row(a,(a,s)=>
+      `<td>${sel(a,'mode',s.mode,[['push','Pulsante'],['toggle','Interruttore']])}</td><td>${sel(a,'nc',s.nc?'nc':'no',[['no','Contatto NA'],['nc','Contatto NC']])}</td>`)).join('')}</table></div>`+
+    `<p class="symsec">Uscite</p><div class="tablewrap"><table class="sym">${head(['Mostra come','Colore / verso'])}${ADDR.Q.map(a=>row(a,(a,s)=>
+      `<td>${sel(a,'kind',s.kind,[['lamp','Lampada'],['motor','Motore'],['coil','Contattore'],['buzzer','Sirena']])}</td><td>${
+        (s.kind||'lamp')==='motor'?sel(a,'dir',s.dir,[['cw','Orario'],['ccw','Antiorario']]):
+        (s.kind||'lamp')==='lamp'?sel(a,'color',s.color,[['amber','Gialla'],['green','Verde'],['red','Rossa'],['white','Bianca'],['blue','Blu']]):'—'}</td>`)).join('')}</table></div>`+
+    `<p class="symsec">Merker, timer e contatori</p><div class="tablewrap"><table class="sym">${head([])}${[...ADDR.M,...ADDR.T,...ADDR.C].map(a=>row(a)).join('')}</table></div>`;
+}
+function symEdit(e){
+  const el=e.target.closest('[data-a]'); if(!el) return;
+  if(!symDirty){commit();symDirty=true;}
+  const a=el.dataset.a,f=el.dataset.f; const s=prog.sym[a]||(prog.sym[a]={});
+  if(f==='nc'){ if(el.value==='nc') s.nc=true; else delete s.nc; }
+  else s[f]=el.value;
+  if(f==='mode') rt.phys[a]=false;
+  save(); buildLadder(); buildIO(); paint();
+  if(f==='kind'){buildSym(); const n=document.getElementById('s-'+a+'-kind'); if(n) n.focus();}
+}
+$('#symBody').addEventListener('input',e=>{if(e.target.tagName==='INPUT')symEdit(e);});
+$('#symBody').addEventListener('change',e=>{if(e.target.tagName==='SELECT')symEdit(e);});
+$('#symBtn').addEventListener('click',()=>{symDirty=false;buildSym();$('#mSym').hidden=false;});
+$('#symClose').addEventListener('click',()=>closeModal('#mSym'));
+
+// ---------- salva / apri ----------
+$('#progBtn').addEventListener('click',()=>{$('#progText').value=JSON.stringify(prog);$('#mProg').hidden=false;});
+$('#progClose').addEventListener('click',()=>closeModal('#mProg'));
+$('#progCopy').addEventListener('click',()=>{
+  const ta=$('#progText'); ta.select();
+  if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(()=>toast('Programma copiato'),()=>toast('Testo selezionato: copialo con Ctrl+C'));
+  else toast('Testo selezionato: copialo con Ctrl+C');
+});
+function loadText(txt,src){
+  try{const p=normProg(JSON.parse(txt));commit();prog=p;if(rt.running){stop();}changed();closeModal('#mProg');toast('Programma caricato '+src);}
+  catch(e){toast('Questo testo non è un programma del simulatore');}
+}
+$('#progLoad').addEventListener('click',()=>loadText($('#progText').value,'dal testo'));
+$('#progFile').addEventListener('change',e=>{
+  const f=e.target.files&&e.target.files[0]; if(!f) return;
+  const rd=new FileReader(); rd.onload=()=>loadText(String(rd.result),'dal file'); rd.onerror=()=>toast('Impossibile leggere il file'); rd.readAsText(f);
+  e.target.value='';
+});
+
+// ---------- modali, toast ----------
+let lastFocus=null;
+function closeModal(sel){$(sel).hidden=true;if(lastFocus&&document.contains(lastFocus))lastFocus.focus();}
+document.addEventListener('focusin',e=>{if(!e.target.closest('.scrim'))lastFocus=e.target;});
+document.querySelectorAll('.scrim').forEach(s=>s.addEventListener('click',e=>{if(e.target===s)closeModal('#'+s.id);}));
+let toastT=null;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2800);}
+
+// ---------- eventi ----------
+elR.addEventListener('click',e=>{
+  const card=e.target.closest('.rung'); if(!card) return; const ri=+card.dataset.ri;
+  const act=e.target.closest('[data-act]'); if(act){rungAction(ri,act.dataset.act);return;}
+  const v=e.target.closest('[data-v]'); if(v){const r=prog.rungs[ri],i=+v.dataset.i,b=+v.dataset.b;commit();r.v[i][b]=!r.v[i][b];changed();return;}
+  const c=e.target.closest('[data-cell]'); if(c){openEditor('cell',ri,+c.dataset.i,+c.dataset.j);return;}
+  const k=e.target.closest('[data-coil]'); if(k){openEditor('coil',ri,+k.dataset.i);}
+});
+elR.addEventListener('input',e=>{
+  const inp=e.target.closest('.rcom'); if(!inp) return; const ri=+inp.closest('.rung').dataset.ri;
+  if(!inp.dataset.dirty){commit();inp.dataset.dirty='1';} prog.rungs[ri].c=inp.value; save();
+});
+elR.addEventListener('focusout',e=>{const inp=e.target.closest('.rcom');if(inp)delete inp.dataset.dirty;});
+
+let ptrIn=null;
+$('#inList').addEventListener('pointerdown',e=>{
+  const b=e.target.closest('[data-in]'); if(!b) return; e.preventDefault(); ptrIn=b.dataset.in; pressInput(ptrIn);
+});
+const ptrUp=()=>{if(ptrIn){releaseInput(ptrIn);ptrIn=null;}};
+window.addEventListener('pointerup',ptrUp); window.addEventListener('pointercancel',ptrUp); window.addEventListener('blur',ptrUp);
+$('#inList').addEventListener('keydown',e=>{
+  const b=e.target.closest('[data-in]'); if(!b||(e.key!==' '&&e.key!=='Enter')||e.repeat) return; e.preventDefault(); pressInput(b.dataset.in);
+});
+$('#inList').addEventListener('keyup',e=>{const b=e.target.closest('[data-in]');if(b&&(e.key===' '||e.key==='Enter'))releaseInput(b.dataset.in);});
+$('#inList').addEventListener('contextmenu',e=>e.preventDefault());
+
+const typing=t=>t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){document.querySelectorAll('.scrim').forEach(s=>{if(!s.hidden)closeModal('#'+s.id);});return;}
+  if(typing(e.target)) return;
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?doRedo():doUndo();return;}
+  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();doRedo();return;}
+  if(!document.querySelector('.scrim:not([hidden])')&&/^[1-8]$/.test(e.key)&&!e.repeat&&!e.ctrlKey&&!e.metaKey&&!e.altKey){pressInput(ADDR.I[+e.key-1]);}
+});
+document.addEventListener('keyup',e=>{if(/^[1-8]$/.test(e.key)&&!typing(e.target))releaseInput(ADDR.I[+e.key-1]);});
+
+$('#runBtn').addEventListener('click',()=>rt.running?stop():start());
+$('#stepBtn').addEventListener('click',step);
+$('#undoBtn').addEventListener('click',doUndo);
+$('#redoBtn').addEventListener('click',doRedo);
+$('#addRung').addEventListener('click',()=>{commit();prog.rungs.push(newRung());changed();const s=$('#scroll');s.scrollTop=s.scrollHeight;});
+$('#exSel').addEventListener('change',e=>{
+  const k=e.target.value; e.target.value=''; if(!EX[k]) return;
+  commit(); prog=normProg(EX[k]()); rt.phys={};
+  const was=rt.running; if(was)stop(); else resetRuntime();
+  changed(); if(was)start();
+  toast(k==='vuoto'?'Nuovo programma. Annulla per tornare indietro.':'Esempio caricato. Annulla per tornare al programma di prima.');
+});
+$('#ioToggle').addEventListener('click',()=>{$('#io').hidden=!$('#io').hidden;});
+
+// ---------- avvio ----------
+if(!load()) prog=normProg(EX.marcia());
+resetRuntime(); buildLadder(); buildIO(); runUI(); paint(); undoUI();
+})();
+</script>
+<a href="index.html" aria-label="Torna alla home" style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;width:40px;height:40px;border-radius:50%;background:rgba(20,23,30,.88);color:#f0a83a;border:1px solid rgba(240,168,58,.55);display:grid;place-items:center;text-decoration:none;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">⌂</a><script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script></body></html>

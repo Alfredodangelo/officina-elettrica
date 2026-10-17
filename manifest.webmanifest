@@ -1,0 +1,16 @@
+{
+  "name": "Officina Elettrica",
+  "short_name": "Officina El.",
+  "description": "Simulatori di elettrotecnica: logica cablata, ladder PLC e lettore di schemi CADe SIMU.",
+  "lang": "it",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#12141a",
+  "theme_color": "#12141a",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
