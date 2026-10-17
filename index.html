@@ -16,6 +16,7 @@
   --bg:#12141a; --card:#1b2029; --card2:#1f2530; --line:#2b323d; --fg:#e7ebf2; --muted:#8a93a3;
   --gold:#f0a83a; --gold-soft:rgba(240,168,58,.14); --green:#2fd38a; --green-soft:rgba(47,211,138,.14);
   --blue:#5ea4ff; --blue-soft:rgba(94,164,255,.14);
+  --violet:#7c5cff; --violet-soft:rgba(124,92,255,.14);
   --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px rgba(0,0,0,.33);
   --ui:"Chivo",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   color-scheme:dark;
@@ -57,6 +58,7 @@ h1{margin:0;font-size:26px;font-weight:900;letter-spacing:-.01em}
 .t-cab{--accent:var(--gold);--accent-soft:var(--gold-soft)}
 .t-plc{--accent:var(--green);--accent-soft:var(--green-soft)}
 .t-cad{--accent:var(--blue);--accent-soft:var(--blue-soft)}
+.t-edit{--accent:var(--violet);--accent-soft:var(--violet-soft)}
 .bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:24px;padding-top:18px;border-top:1px solid var(--line)}
 .btn{border:1px solid var(--line);background:var(--card2);color:var(--fg);border-radius:11px;padding:10px 16px;font-size:14px;
   font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
@@ -82,7 +84,7 @@ footer{margin-top:22px;color:var(--muted);font-size:11.5px;line-height:1.6}
     </div>
   </header>
 
-  <p class="lead">Tre strumenti in un'app sola: disegna e simula schemi di comando in logica cablata, prova la logica a contatti di un PLC, e apri i tuoi schemi di CADe SIMU su qualsiasi dispositivo.</p>
+  <p class="lead">Quattro strumenti in un'app sola: disegna i tuoi schemi elettrici da zero, simula il comando in logica cablata, prova la logica a contatti di un PLC e apri i file di CADe SIMU — su qualsiasi dispositivo.</p>
 
   <div class="grid">
     <a class="tile t-cab" href="cablata.html">
@@ -95,7 +97,12 @@ footer{margin-top:22px;color:var(--muted);font-size:11.5px;line-height:1.6}
       <div><h2>Ladder PLC</h2><p>Schema a contatti con scansione in tempo reale: contatti, bobine, timer e contatori.</p></div>
       <span class="go" aria-hidden="true">→</span>
     </a>
-    <a class="tile t-cad wide" href="cade.html">
+    <a class="tile t-edit" href="editor.html">
+      <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 7h4M4 7v10M16 7h4M20 7v10M8 12h3M13 12h3"/><circle cx="12" cy="12" r="1.7"/></svg></span>
+      <div><h2>Editor Schemi</h2><p>Disegna i tuoi schemi elettrici da zero: posiziona i componenti e collegali con i fili, come su un foglio.</p></div>
+      <span class="go" aria-hidden="true">→</span>
+    </a>
+    <a class="tile t-cad" href="cade.html">
       <span class="ic"><svg viewBox="0 0 24 24"><path d="M4 4h12l4 4v12H4zM16 4v4h4M7 12h10M7 16h7"/></svg></span>
       <div><h2>Lettore CADe SIMU</h2><p>Apri i file .cad salvati da CADe SIMU e vedi lo schema ridisegnato, su Mac e Windows, senza Windows.</p></div>
       <span class="go" aria-hidden="true">→</span>

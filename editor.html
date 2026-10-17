@@ -1,0 +1,413 @@
+<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#12141a"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><title>Editor Schemi — Officina Elettrica</title><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html,body{margin:0}[hidden]{display:none!important}</style></head><body><meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chivo:wght@400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: editor a tela libera — barra strumenti in alto, tavolozza a sinistra, foglio al centro */
+:root{
+  --bg:#e7e9ed; --panel:#f5f6f8; --card:#ffffff; --sheet:#fcfcfa; --inset:#eceef2; --hover:rgba(58,70,92,.08);
+  --line:#cfd4dc; --grid:#e4e7ec; --sym:#222a36; --fg:#18202e; --muted:#5c6475;
+  --accent:#c9740c; --accent-soft:rgba(201,116,12,.15); --sel:#1f7a4d; --sel-soft:rgba(31,122,77,.16);
+  --wire:#222a36;
+  --shadow:0 1px 2px rgba(20,28,45,.07),0 6px 18px rgba(20,28,45,.05);
+  --ui:"Chivo",system-ui,-apple-system,"Segoe UI",sans-serif; --mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#101318; --panel:#161a21; --card:#1c212a; --sheet:#1a1f27; --inset:#13171d; --hover:rgba(200,215,240,.06);
+  --line:#2b323d; --grid:#232a34; --sym:#cdd4e0; --fg:#e6eaf1; --muted:#8a93a3;
+  --accent:#f0a83a; --accent-soft:rgba(240,168,58,.16); --sel:#2fd38a; --sel-soft:rgba(47,211,138,.16);
+  --wire:#cdd4e0; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3); color-scheme:dark;
+}}
+:root[data-theme="dark"]{
+  --bg:#101318; --panel:#161a21; --card:#1c212a; --sheet:#1a1f27; --inset:#13171d; --hover:rgba(200,215,240,.06);
+  --line:#2b323d; --grid:#232a34; --sym:#cdd4e0; --fg:#e6eaf1; --muted:#8a93a3;
+  --accent:#f0a83a; --accent-soft:rgba(240,168,58,.16); --sel:#2fd38a; --sel-soft:rgba(47,211,138,.16);
+  --wire:#cdd4e0; --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 22px rgba(0,0,0,.3); color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--ui);font-size:14px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;display:flex;flex-direction:column;overflow:hidden;touch-action:manipulation}
+h1,h2{margin:0;font-weight:700}
+button,input{font-family:inherit;color:inherit}
+.mono{font-family:var(--mono)}
+
+header{flex:none;background:var(--panel);border-bottom:1px solid var(--line);padding-block:9px;
+  padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px));
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;z-index:6}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto;min-width:0}
+.logo{width:32px;height:32px;flex:none;border-radius:8px;background:var(--sym);display:grid;place-items:center}
+.brand h1{font-size:15px;white-space:nowrap}
+.brand p{margin:0;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:8px;padding:6px 11px;font-size:13px;font-weight:600;
+  cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)} .btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:default} .btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn.on{background:var(--accent);border-color:transparent;color:#2a1800}
+.btn.ghost{background:transparent}
+.btn svg{width:14px;height:14px}
+.zoom{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}
+.zoom button{border:0;background:none;padding:6px 10px;font-size:14px;font-weight:700;cursor:pointer;color:var(--fg)}
+.zoom button:hover{background:var(--inset)} .zoom button+button{border-left:1px solid var(--line)}
+.pal-toggle{display:none}
+
+.work{flex:1;min-height:0;display:flex}
+.palette{width:184px;flex:none;border-right:1px solid var(--line);background:var(--panel);overflow:auto;
+  padding:12px 10px 40px 12px}
+.palette h2{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:14px 0 7px;font-weight:700}
+.palette h2:first-child{margin-top:0}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.pitem{border:1px solid var(--line);background:var(--card);border-radius:9px;padding:6px 3px 4px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.pitem:hover{border-color:var(--muted)}
+.pitem.on{border-color:var(--accent);background:var(--accent-soft)}
+.pitem svg{width:40px;height:40px}
+.pitem svg *{stroke:var(--sym);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.pitem svg .f{fill:var(--sym);stroke:none}
+.pitem span{font-size:9.5px;color:var(--muted);line-height:1.15}
+
+.stage{flex:1;min-width:0;overflow:auto;background:var(--inset);position:relative}
+.sheetwrap{background:var(--sheet);box-shadow:var(--shadow);margin:24px}
+svg.sheet{display:block}
+svg.sheet .gl{stroke:var(--grid);stroke-width:1}
+svg.sheet .gl0{stroke:color-mix(in srgb,var(--grid) 160%,transparent);stroke-width:1}
+svg.sheet .sym{stroke:var(--sym);fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+svg.sheet .f{fill:var(--sym);stroke:none}
+svg.sheet .term{fill:var(--sym);opacity:.55}
+svg.sheet .wire{stroke:var(--wire);stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round}
+svg.sheet .lab{fill:var(--fg);font-family:IBM Plex Mono,monospace;font-size:11px;font-weight:600}
+svg.sheet .comp{cursor:grab}
+svg.sheet .comp.sel .sym{stroke:var(--sel)} svg.sheet .comp.sel .f{fill:var(--sel)} svg.sheet .comp.sel .lab{fill:var(--sel)}
+svg.sheet .wire.sel{stroke:var(--sel)}
+svg.sheet .hit{fill:transparent}
+svg.sheet.placing{cursor:crosshair} svg.sheet.wiring{cursor:crosshair}
+svg.sheet .ghost{opacity:.5;pointer-events:none}
+svg.sheet .draft{stroke:var(--accent);stroke-width:2.2;fill:none;stroke-dasharray:4 3;pointer-events:none}
+.labedit{position:absolute;z-index:20;font-family:var(--mono);font-size:12px;font-weight:600;padding:2px 5px;
+  border:1px solid var(--accent);border-radius:5px;background:var(--card);color:var(--fg);width:84px}
+
+.hint{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:5;background:var(--card);
+  border:1px solid var(--line);border-radius:999px;padding:5px 13px;font-size:12px;color:var(--muted);box-shadow:var(--shadow);
+  white-space:nowrap;max-width:calc(100% - 24px);overflow:hidden;text-overflow:ellipsis}
+
+.scrim{position:fixed;inset:0;background:rgba(9,13,20,.5);z-index:50;display:grid;place-items:center;padding:16px}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);width:min(480px,100%);padding:20px}
+.modal h2{font-size:16px;margin-bottom:4px}
+.msub{color:var(--muted);font-size:12.5px;margin:0 0 12px}
+.field label{display:block;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.field textarea{width:100%;font-family:var(--mono);font-size:12px;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);resize:vertical}
+.field input[type=file]{width:100%;font-size:13px;padding:8px;border-radius:10px;border:1px solid var(--line);background:var(--panel)}
+.mact{display:flex;gap:8px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:60;
+  background:var(--fg);color:var(--bg);font-size:13px;font-weight:600;padding:9px 14px;border-radius:10px;box-shadow:var(--shadow)}
+
+@media (max-width:760px){
+  .palette{position:absolute;z-index:8;height:100%;box-shadow:var(--shadow)}
+  .palette[hidden]{display:none!important}
+  .pal-toggle{display:inline-flex}
+  .brand p{display:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<header>
+  <div class="brand">
+    <span class="logo" aria-hidden="true"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#e3e9f2" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h4M4 7v10M16 7h4M20 7v10M8 12h3M13 12h3"/><circle cx="12" cy="12" r="1.6"/></svg></span>
+    <div><h1>Editor Schemi Elettrici</h1><p>Disegna · sposta · collega</p></div>
+  </div>
+  <button class="btn pal-toggle" id="palToggle">Componenti</button>
+  <button class="btn" id="toolSelect" title="Seleziona/sposta (V)">▚ Seleziona</button>
+  <button class="btn" id="toolWire" title="Filo (W)">╱ Filo</button>
+  <span style="width:1px;height:20px;background:var(--line)"></span>
+  <button class="btn ghost" id="rotBtn" title="Ruota (R)">⟳</button>
+  <button class="btn ghost" id="delBtn" title="Elimina (Canc)">🗑</button>
+  <div class="zoom"><button id="zoomOut">−</button><button id="zoomFit" title="Adatta">⤢</button><button id="zoomIn">+</button></div>
+  <button class="btn ghost" id="saveBtn">Salva / apri</button>
+  <button class="btn ghost" id="clearBtn">Svuota</button>
+</header>
+
+<div class="work">
+  <aside class="palette" id="palette"></aside>
+  <div class="stage" id="stage">
+    <div class="sheetwrap" id="sheetwrap"><svg class="sheet" id="svg"></svg></div>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+
+<div class="scrim" id="mSave" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="svTitle">
+    <h2 id="svTitle">Salva / apri schema</h2>
+    <p class="msub">Lo schema si salva da solo nel browser. Copia il testo per conservarlo, incollalo o scegli un file per riaprirlo.</p>
+    <div class="field"><label for="svText">Schema (JSON)</label><textarea id="svText" rows="6" spellcheck="false"></textarea></div>
+    <div class="field" style="margin-top:10px"><label for="svFile">Apri da file</label><input id="svFile" type="file" accept=".json,.txt,application/json,text/plain"></div>
+    <div class="mact">
+      <button class="btn ghost" id="svCopy">Copia</button>
+      <button class="btn ghost" id="svLoad">Carica dal testo</button>
+      <button class="btn" id="svClose">Chiudi</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<script>
+"use strict";
+(function(){
+const $=s=>document.querySelector(s);
+const U=16;                      // passo della griglia (px)
+const COLS=96, ROWS=60;          // dimensione del foglio in celle
+const W=COLS*U, H=ROWS*U;
+
+// ---------- simboli (coordinate locali in px; origine = primo morsetto) ----------
+const L=(a,b,c,d)=>`<line class="sym" x1="${a}" y1="${b}" x2="${c}" y2="${d}"/>`;
+const C=(a,b,r)=>`<circle class="sym" cx="${a}" cy="${b}" r="${r}"/>`;
+const R=(a,b,w,h)=>`<rect class="sym" x="${a}" y="${b}" width="${w}" height="${h}" rx="1"/>`;
+const TXT=(a,b,t,s)=>`<text class="f" x="${a}" y="${b}" text-anchor="middle" font-size="${s||6}" font-family="IBM Plex Mono,monospace">${t}</text>`;
+function contact(px,kind){ // verticale, altezza 2U; morsetti a (px,0) e (px,2U)
+  const m=U, g=4; let o=L(px,0,px,m-g)+L(px,2*U,px,m+g)+L(px,m+g,px+6,m-g);
+  if(kind==="nc") o+=L(px+6,m-g-1,px+6,m+2);
+  if(kind==="km") o+=`<path class="sym" d="M${px-1} ${m+g} q3.5 2 6 -1.5"/>`;
+  if(kind==="mt") o+=R(px-2.5,m+g+1,5,3.5);
+  if(kind==="sw") o+=L(px-2,2*U,px+2.5,2*U);
+  return o;
+}
+const SYM={
+  no:()=>contact(0,"no"), nc:()=>contact(0,"nc"),
+  pno:()=>contact(0,"no")+L(6,U,11,U)+`<rect class="f" x="10.5" y="${U-2.5}" width="2" height="5"/>`,
+  pnc:()=>contact(0,"nc")+L(6,U,11,U)+`<rect class="f" x="10.5" y="${U-2.5}" width="2" height="5"/>`,
+  coil:()=>L(0,0,0,U-6)+L(0,U+6,0,2*U)+R(-6,U-6,12,12),
+  coilt:()=>L(0,0,0,U-6)+L(0,U+6,0,2*U)+R(-6,U-6,12,12)+`<path class="sym" d="M-3 ${U} h6 M0 ${U} l2.5 -2"/>`,
+  lamp:()=>L(0,0,0,U-6)+L(0,U+6,0,2*U)+C(0,U,6)+L(-4.3,U-4.3,4.3,U+4.3)+L(-4.3,U+4.3,4.3,U-4.3),
+  fuse:()=>L(0,0,0,2*U)+R(-3,U-7,6,14),
+  k3:()=>contact(0,"km")+contact(U,"km")+contact(2*U,"km")+`<line class="sym" stroke-dasharray="1.5 2" x1="5" y1="${U-4}" x2="${2*U+5}" y2="${U-4}"/>`,
+  mt3:()=>contact(0,"mt")+contact(U,"mt")+contact(2*U,"mt")+`<line class="sym" stroke-dasharray="1.5 2" x1="0" y1="${U-4}" x2="${2*U}" y2="${U-4}"/>`,
+  sez3:()=>contact(0,"sw")+contact(U,"sw")+contact(2*U,"sw")+`<line class="sym" stroke-dasharray="1.5 2" x1="2" y1="${U+4}" x2="${2*U+2}" y2="${U+4}"/>`,
+  motor:()=>L(0,0,U,24)+L(U,0,U,24)+L(2*U,0,U,24)+C(U,40,16)+TXT(U,43,"M",15)+TXT(U,53,"3~",7),
+  transf:()=>L(0,0,0,10)+L(0,3*U-10,0,3*U)+`<path class="sym" d="M0 10 q6 3 0 6 q6 3 0 6 q6 3 0 6"/><path class="sym" d="M0 ${3*U-28} q-6 3 0 6 q-6 3 0 6 q-6 3 0 6"/>`
+};
+// definizione componenti: morsetti in unità di griglia, prefisso sigla
+const DEF={
+  no:{n:"Contatto NA",g:"Comando",t:[[0,0],[0,2]],p:"S"}, nc:{n:"Contatto NC",g:"Comando",t:[[0,0],[0,2]],p:"S"},
+  pno:{n:"Pulsante NA",g:"Comando",t:[[0,0],[0,2]],p:"S"}, pnc:{n:"Pulsante NC",g:"Comando",t:[[0,0],[0,2]],p:"S"},
+  coil:{n:"Bobina",g:"Comando",t:[[0,0],[0,2]],p:"KM"}, coilt:{n:"Bobina timer",g:"Comando",t:[[0,0],[0,2]],p:"KT"},
+  lamp:{n:"Lampada",g:"Comando",t:[[0,0],[0,2]],p:"H"},
+  k3:{n:"Contattore 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"KM"},
+  mt3:{n:"Magnetotermico 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"Q"},
+  sez3:{n:"Sezionatore 3P",g:"Potenza",t:[[0,0],[1,0],[2,0],[0,2],[1,2],[2,2]],p:"S"},
+  fuse:{n:"Fusibile",g:"Potenza",t:[[0,0],[0,2]],p:"F"},
+  motor:{n:"Motore 3~",g:"Potenza",t:[[0,0],[1,0],[2,0]],p:"M"},
+  transf:{n:"Trasformatore",g:"Potenza",t:[[0,0],[0,3]],p:"T"}
+};
+const ORDER=Object.keys(DEF);
+// riquadro locale (per selezione) per tipo
+function localBox(t){
+  if(t==="motor") return {x:-18,y:-6,w:68,h:70};
+  if(t==="transf") return {x:-10,y:-4,w:20,h:3*U+8};
+  if(["k3","mt3","sez3"].includes(t)) return {x:-10,y:-4,w:2*U+20,h:2*U+8};
+  return {x:-11,y:-4,w:22,h:2*U+8};
+}
+
+// ---------- stato ----------
+let prog={comps:[],wires:[],seq:{}};
+let tool="select", placeType=null, sel=null, zoom=1;
+let drag=null, draft=null, hoverPt=null;
+const KEY="cade_editor_v1";
+
+function nextLabel(t){const p=DEF[t].p;prog.seq[p]=(prog.seq[p]||0)+1;return p+prog.seq[p];}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(prog));}catch(e){}}
+function load(){try{const s=localStorage.getItem(KEY);if(s){const d=JSON.parse(s);if(d&&Array.isArray(d.comps)){prog=normalize(d);return true;}}}catch(e){}return false;}
+function normalize(d){
+  const p={comps:[],wires:[],seq:{}};
+  (d.comps||[]).forEach(c=>{if(DEF[c.t])p.comps.push({id:c.id||uid(),t:c.t,x:Math.round((+c.x||0)/U)*U,y:Math.round((+c.y||0)/U)*U,rot:((+c.rot||0)%360+360)%360,lab:String(c.lab||"")});});
+  (d.wires||[]).forEach(w=>{if(Array.isArray(w.pts)&&w.pts.length>=2)p.wires.push({id:w.id||uid(),pts:w.pts.map(pt=>[Math.round(pt[0]/U)*U,Math.round(pt[1]/U)*U])});});
+  // ricostruisci i contatori delle sigle
+  p.comps.forEach(c=>{const m=/^([A-Za-z]+)(\d+)$/.exec(c.lab||"");if(m){const pre=m[1],n=+m[2];p.seq[pre]=Math.max(p.seq[pre]||0,n);}});
+  return p;
+}
+let _id=1; function uid(){return "e"+(_id++)+"_"+Math.random().toString(36).slice(2,6);}
+
+// ---------- geometria ----------
+function rot(px,py,deg){const r=deg*Math.PI/180,c=Math.cos(r),s=Math.sin(r);return [px*c-py*s, px*s+py*c];}
+function compTerms(c){return DEF[c.t].t.map(([gx,gy])=>{const [rx,ry]=rot(gx*U,gy*U,c.rot);return [c.x+rx,c.y+ry];});}
+function compBoxWorld(c){ // bbox approssimato in coordinate mondo
+  const b=localBox(c.t), pts=[[b.x,b.y],[b.x+b.w,b.y],[b.x,b.y+b.h],[b.x+b.w,b.y+b.h]].map(([x,y])=>{const[rx,ry]=rot(x,y,c.rot);return[c.x+rx,c.y+ry];});
+  const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+  return {x:Math.min(...xs),y:Math.min(...ys),w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys)};
+}
+function labelPos(c){ // posizione sigla, in mondo, verticale costante
+  const b=localBox(c.t); const [rx,ry]=rot(b.x+b.w+3, b.y+b.h/2, c.rot);
+  return [c.x+rx, c.y+ry];
+}
+
+// ---------- disegno ----------
+const svg=$("#svg"), sheetwrap=$("#sheetwrap");
+function setZoom(z){zoom=Math.max(.35,Math.min(2.5,z));svg.setAttribute("width",(W*zoom).toFixed(0));svg.setAttribute("height",(H*zoom).toFixed(0));svg.setAttribute("viewBox",`0 0 ${W} ${H}`);}
+function render(){
+  let g="";
+  // griglia
+  g+=`<rect x="0" y="0" width="${W}" height="${H}" fill="var(--sheet)"/>`;
+  for(let x=0;x<=COLS;x++) g+=`<line class="${x%5?'gl':'gl0'}" x1="${x*U}" y1="0" x2="${x*U}" y2="${H}"/>`;
+  for(let y=0;y<=ROWS;y++) g+=`<line class="${y%5?'gl':'gl0'}" x1="0" y1="${y*U}" x2="${W}" y2="${y*U}"/>`;
+  // fili
+  for(const w of prog.wires) g+=`<polyline class="wire${sel&&sel.k==='w'&&sel.id===w.id?' sel':''}" data-w="${w.id}" points="${w.pts.map(p=>p.join(',')).join(' ')}"/>`;
+  // componenti
+  for(const c of prog.comps){
+    g+=`<g class="comp${sel&&sel.k==='c'&&sel.id===c.id?' sel':''}" data-c="${c.id}" transform="translate(${c.x},${c.y}) rotate(${c.rot})">`;
+    g+=SYM[c.t]();
+    for(const [gx,gy] of DEF[c.t].t) g+=`<circle class="term" cx="${gx*U}" cy="${gy*U}" r="1.7"/>`;
+    const b=localBox(c.t); g+=`<rect class="hit" x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}"/>`;
+    g+=`</g>`;
+    if(c.lab){const [lx,ly]=labelPos(c); g+=`<text class="lab${sel&&sel.k==='c'&&sel.id===c.id?' sel':''}" x="${lx.toFixed(1)}" y="${(ly+4).toFixed(1)}">${esc(c.lab)}</text>`;}
+  }
+  // anteprima filo
+  if(draft&&draft.pts.length){ const pts=draft.pts.slice(); if(hoverPt)pts.push(hoverPt); g+=`<polyline class="draft" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
+    draft.pts.forEach(p=>g+=`<circle class="f" cx="${p[0]}" cy="${p[1]}" r="2"/>`); }
+  svg.innerHTML=g;
+  save();
+}
+function esc(s){return String(s).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+// ---------- coordinate mouse -> foglio (snap) ----------
+function evtPt(e){const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/zoom,y=(e.clientY-r.top)/zoom;return [x,y];}
+function snap(x,y){return [Math.round(x/U)*U,Math.round(y/U)*U];}
+
+// ---------- hit test ----------
+function compAt(x,y){
+  for(let i=prog.comps.length-1;i>=0;i--){const c=prog.comps[i],b=compBoxWorld(c);
+    if(x>=b.x&&x<=b.x+b.w&&y>=b.y&&y<=b.y+b.h) return c;}
+  return null;
+}
+
+// ---------- tavolozza ----------
+function buildPalette(){
+  const grps={}; ORDER.forEach(t=>{(grps[DEF[t].g]=grps[DEF[t].g]||[]).push(t);});
+  let h="";
+  for(const gname in grps){
+    h+=`<h2>${gname}</h2><div class="pgrid">`;
+    for(const t of grps[gname]){
+      h+=`<button class="pitem" data-t="${t}" title="${DEF[t].n}"><svg viewBox="-20 -8 ${localBox(t).w+8} ${localBox(t).h+10}">${SYM[t]()}</svg><span>${DEF[t].n}</span></button>`;
+    }
+    h+="</div>";
+  }
+  $("#palette").innerHTML=h;
+}
+
+// ---------- strumenti ----------
+function setTool(t,pt){
+  tool=t; placeType=pt||null;
+  $("#toolSelect").classList.toggle("on",t==="select");
+  $("#toolWire").classList.toggle("on",t==="wire");
+  document.querySelectorAll(".pitem").forEach(b=>b.classList.toggle("on",t==="place"&&b.dataset.t===placeType));
+  svg.classList.toggle("placing",t==="place");
+  svg.classList.toggle("wiring",t==="wire");
+  if(t!=="wire")draft=null;
+  updateHint();
+}
+function updateHint(){
+  const h=$("#hint");
+  if(tool==="place") h.textContent=`Clicca sul foglio per posizionare: ${DEF[placeType].n}. Esc per finire.`;
+  else if(tool==="wire") h.textContent=draft?"Clicca per aggiungere un tratto · ri-clicca sullo stesso punto (o doppio clic) per finire · Esc annulla":"Clicca per iniziare un filo (resta sulla griglia)";
+  else if(sel) h.textContent="Trascina per spostare · R ruota · Canc elimina";
+  else h.textContent="Scegli un componente dalla tavolozza, o lo strumento Filo";
+}
+
+// ---------- interazione mouse ----------
+svg.addEventListener("pointerdown",e=>{
+  if(e.button!==0)return;
+  const [mx,my]=evtPt(e), [sx,sy]=snap(mx,my);
+  if(tool==="place"){
+    const c={id:uid(),t:placeType,x:sx,y:sy,rot:0,lab:nextLabel(placeType)};
+    prog.comps.push(c); sel={k:"c",id:c.id}; render();
+    return;
+  }
+  if(tool==="wire"){
+    if(!draft){draft={pts:[[sx,sy]]};}
+    else{
+      const last=draft.pts[draft.pts.length-1];
+      if(last[0]===sx&&last[1]===sy){ if(draft.pts.length>=2)prog.wires.push({id:uid(),pts:draft.pts}); draft=null; }
+      else draft.pts.push([sx,sy]);
+    }
+    hoverPt=[sx,sy]; render(); updateHint(); return;
+  }
+  // select
+  const hitW=e.target.closest("[data-w]");
+  const c=compAt(mx,my);
+  if(c){ sel={k:"c",id:c.id}; drag={id:c.id,ox:mx,oy:my,sx:c.x,sy:c.y,moved:false}; svg.setPointerCapture(e.pointerId); }
+  else if(hitW){ sel={k:"w",id:hitW.dataset.w}; drag=null; }
+  else { sel=null; drag=null; }
+  render(); updateHint();
+});
+svg.addEventListener("pointermove",e=>{
+  const [mx,my]=evtPt(e);
+  if(tool==="wire"&&draft){ hoverPt=snap(mx,my)[0]!==undefined?snap(mx,my):null; hoverPt=snap(mx,my); render(); return; }
+  if(drag){ const c=prog.comps.find(k=>k.id===drag.id); if(!c)return;
+    const [nx,ny]=snap(drag.sx+(mx-drag.ox), drag.sy+(my-drag.oy));
+    if(nx!==c.x||ny!==c.y){c.x=nx;c.y=ny;drag.moved=true;render();} }
+});
+function endDrag(e){ if(drag){try{svg.releasePointerCapture(e.pointerId);}catch(_){} drag=null;} }
+svg.addEventListener("pointerup",endDrag);
+svg.addEventListener("pointercancel",endDrag);
+svg.addEventListener("dblclick",e=>{
+  if(tool==="wire"&&draft){ if(draft.pts.length>=2)prog.wires.push({id:uid(),pts:draft.pts}); draft=null; render(); updateHint(); return; }
+  const [mx,my]=evtPt(e); const c=compAt(mx,my); if(c) startLabelEdit(c);
+});
+
+// ---------- modifica sigla ----------
+let labInput=null;
+function startLabelEdit(c){
+  closeLabelEdit();
+  const [lx,ly]=labelPos(c); const r=svg.getBoundingClientRect();
+  const inp=document.createElement("input"); inp.className="labedit"; inp.value=c.lab||"";
+  inp.style.left=(r.left+(lx*zoom))+"px"; inp.style.top=(r.top+(ly*zoom)-10)+"px";
+  document.body.appendChild(inp); inp.focus(); inp.select(); labInput={inp,c};
+  inp.addEventListener("keydown",ev=>{if(ev.key==="Enter"){ev.preventDefault();commitLabel();}else if(ev.key==="Escape"){closeLabelEdit();}});
+  inp.addEventListener("blur",commitLabel);
+}
+function commitLabel(){if(labInput){labInput.c.lab=labInput.inp.value.trim();const el=labInput;labInput=null;el.inp.remove();render();}}
+function closeLabelEdit(){if(labInput){const el=labInput;labInput=null;el.inp.remove();}}
+
+// ---------- comandi ----------
+function rotateSel(){if(sel&&sel.k==="c"){const c=prog.comps.find(k=>k.id===sel.id);if(c){c.rot=(c.rot+90)%360;render();}}}
+function deleteSel(){ if(!sel)return;
+  if(sel.k==="c")prog.comps=prog.comps.filter(c=>c.id!==sel.id);
+  else prog.wires=prog.wires.filter(w=>w.id!==sel.id);
+  sel=null; render(); updateHint();
+}
+$("#toolSelect").addEventListener("click",()=>setTool("select"));
+$("#toolWire").addEventListener("click",()=>setTool("wire"));
+$("#rotBtn").addEventListener("click",rotateSel);
+$("#delBtn").addEventListener("click",deleteSel);
+$("#palette").addEventListener("click",e=>{const b=e.target.closest(".pitem");if(b)setTool("place",b.dataset.t);});
+$("#zoomIn").addEventListener("click",()=>setZoom(zoom*1.2));
+$("#zoomOut").addEventListener("click",()=>setZoom(zoom/1.2));
+$("#zoomFit").addEventListener("click",()=>{const s=$("#stage");setZoom(Math.min((s.clientWidth-60)/W,(s.clientHeight-60)/H));});
+$("#clearBtn").addEventListener("click",()=>{if(prog.comps.length||prog.wires.length){prog={comps:[],wires:[],seq:{}};sel=null;render();toast("Foglio svuotato");}});
+$("#palToggle").addEventListener("click",()=>{const p=$("#palette");p.hidden=!p.hidden;});
+
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  if(e.key==="Escape"){ if(draft){draft=null;render();} setTool("select"); sel=null; render(); updateHint(); }
+  else if(e.key==="Delete"||e.key==="Backspace"){ e.preventDefault(); deleteSel(); }
+  else if(e.key==="r"||e.key==="R"){ rotateSel(); }
+  else if(e.key==="v"||e.key==="V"){ setTool("select"); }
+  else if(e.key==="w"||e.key==="W"){ setTool("wire"); }
+  else if((e.ctrlKey||e.metaKey)&&e.key==="Enter"&&draft){ if(draft.pts.length>=2)prog.wires.push({id:uid(),pts:draft.pts});draft=null;render();updateHint(); }
+});
+
+// ---------- salva / apri ----------
+const mSave=$("#mSave");
+$("#saveBtn").addEventListener("click",()=>{$("#svText").value=JSON.stringify(prog);mSave.hidden=false;});
+$("#svClose").addEventListener("click",()=>mSave.hidden=true);
+mSave.addEventListener("click",e=>{if(e.target===mSave)mSave.hidden=true;});
+$("#svCopy").addEventListener("click",()=>{const ta=$("#svText");ta.select();(navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(ta.value).then(()=>toast("Copiato"),()=>toast("Seleziona e copia")):toast("Seleziona e copia"));});
+function loadText(txt,src){try{const d=JSON.parse(txt);if(!d||!Array.isArray(d.comps))throw 0;prog=normalize(d);sel=null;render();mSave.hidden=true;toast("Schema caricato "+src);}catch(e){toast("Testo non valido");}}
+$("#svLoad").addEventListener("click",()=>loadText($("#svText").value,"dal testo"));
+$("#svFile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>loadText(String(rd.result),"dal file");rd.readAsText(f);e.target.value="";});
+let toastT; function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200);}
+
+// ---------- avvio ----------
+buildPalette();
+if(!load()){ prog={comps:[],wires:[],seq:{}}; }
+setTool("select");
+setZoom(1); render(); updateHint();
+})();
+</script>
+<a href="index.html" aria-label="Torna alla home" style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;width:40px;height:40px;border-radius:50%;background:rgba(20,23,30,.88);color:#f0a83a;border:1px solid rgba(240,168,58,.55);display:grid;place-items:center;text-decoration:none;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">⌂</a><script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script></body></html>
