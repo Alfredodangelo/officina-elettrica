@@ -247,6 +247,11 @@ L'*Editor Schemi* di questa app può **salvare** uno schema in formato `.cad`, c
 riapre in CADe SIMU. L'esportazione è il percorso inverso dell'import ed è **sperimentale**:
 il file va provato aprendolo davvero in CADe SIMU, perché il formato è ricostruito, non ufficiale.
 
+I record generati sono stati **confrontati con file `.cad` reali** salvati da CADe SIMU
+(esercizi scolastici): contatti (7000/7001/7004), pulsanti (8000/8001), bobine (9000/9004),
+contattore (2001) e trasformatore (3012) risultano **identici** a quelli reali, a meno di
+id, coordinate, nodi e dell'eventuale descrizione del componente.
+
 ### Cosa viene scritto
 1. **Intestazione**: il record origine del foglio
    `CADe_SIMU*0*3005#-X#…#` (tipo 3005), con `id = 0`.
@@ -256,8 +261,10 @@ il file va provato aprendolo davvero in CADe SIMU, perché il formato è ricostr
    *<id>*<tipo>#-<sigla>##<m1>#<m2>#…##<flag…>*<x>*<y>*0*0*<bbox>*0*0*0*1*0*0*0#
    ```
 
-   - il blocco testo ha sempre **10 campi** (`%s`): sigla con trattino iniziale, un campo
-     vuoto, i nomi dei morsetti, poi riempimento con campi vuoti (variante standard, cfr. §2);
+   - il blocco testo ha sempre **10 campi** (`%s`): sigla **senza trattino** (come nei file
+     reali — il trattino in CADe compare solo sulle sigle di default non rinominate, es. `-M`),
+     un campo **descrizione** (vuoto se assente, es. `START`/`STOP` sui pulsanti), i nomi dei
+     morsetti, poi riempimento con campi vuoti (variante standard, cfr. §2);
    - i **flag "morsetto presente"** e il **riquadro** (`bbox`) sono quelli tipici del tipo,
      ricavati da record reali;
    - i due **nodi** finali sono scritti a `0*0`: CADe SIMU ricostruisce la rete dalla

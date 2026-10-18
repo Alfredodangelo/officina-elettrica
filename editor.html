@@ -488,12 +488,12 @@ $("#cadFile").addEventListener("change",e=>{const f=e.target.files&&e.target.fil
 const EXP={
  no:   {ty:7000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]},
  nc:   {ty:7001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]},
- pno:  {ty:8000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15]},
- pnc:  {ty:8001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15]},
- pnoe: {ty:8000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15]},
+ pno:  {ty:8000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15], op:1},
+ pnc:  {ty:8001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15], op:1},
+ pnoe: {ty:8000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15], op:1},
  tno:  {ty:7004, terms:["67","68"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,6,15]},
  coil: {ty:9000, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
- coilt:{ty:9004, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ coilt:{ty:9004, terms:["A1","A2","0","3"],    flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
  set:  {ty:9000, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
  reset:{ty:9000, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
  cnt:  {ty:9016, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
@@ -507,14 +507,15 @@ const EXP={
  fuse: {ty:5000, terms:["1","2"],              flags:[1,0,0,0,0,0,0,0], bbox:[-6,-3,6,18]},
  res:  {ty:1050, terms:["1","2"],              flags:[1,0,0,0,0,0,0,0], bbox:[-6,-3,12,15]},
  motor:{ty:1000, terms:["U1","V1","W1","PE"],  flags:[1,1,1,1,0,0,0,0], bbox:[-12,-6,24,24]},
- transf:{ty:3012,terms:["1","2","3","4"],      flags:[1,1,1,1,0,0,0,0], bbox:[-12,-3,12,18]},
+ transf:{ty:3012,terms:["1","2","3","4"],      flags:[1,1,1,1,0,0,0,0], bbox:[-14,-3,15,18]},
  edgep:{ty:7000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]},
  edgen:{ty:7001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]}
 };
 function cadRec(id,d,sig,x,y){
-  // blocco testo: sigla, un campo vuoto, i morsetti, poi riempito fino a 10 campi (variante standard)
-  const f=["-"+sig,""].concat(d.terms); while(f.length<10)f.push("");
-  return `*${id}*${d.ty}#`+f.join("#")+"*"+d.flags.join("*")+`*${x}*${y}*0*0*`+d.bbox.join("*")+"*0*0*0*1*0*0*0#";
+  // blocco testo: sigla (senza trattino, come nei file reali), un campo descrizione vuoto,
+  // i morsetti, poi riempito fino a 10 campi (variante standard)
+  const f=[sig,""].concat(d.terms); while(f.length<10)f.push("");
+  return `*${id}*${d.ty}#`+f.join("#")+"*"+d.flags.join("*")+`*${x}*${y}*0*0*`+d.bbox.join("*")+`*0*0*0*1*${d.op||0}*0*0#`;
 }
 function exportCad(){
   const CC=px=>Math.round(px/U*6);               // px editor -> unità CADe (inverso dell'import)
@@ -528,7 +529,7 @@ function exportCad(){
   for(const w of prog.wires){
     for(let s=0;s<w.pts.length-1;s++){
       const a=w.pts[s],b=w.pts[s+1];
-      out+=`*${id++}*4000##########*0*0*0*0*0*0*0*0*${CC(a[0])}*${CC(a[1])}*${CC(b[0])}*${CC(b[1])}*0*0*0*0*0*0*0*0*0*1*0#`;
+      out+=`*${id++}*4000##########*0*0*0*0*0*0*0*0*${CC(a[0])}*${CC(a[1])}*${CC(b[0])}*${CC(b[1])}*0*0*0*0*0*0*0*0*0*0*0#`;
     }
   }
   const dt=new Date(),M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dt.getMonth()];
