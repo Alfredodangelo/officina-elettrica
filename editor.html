@@ -150,6 +150,7 @@ svg.sheet.sim .comp.oper .hit{fill:rgba(47,211,138,.05)}
     <div class="field"><label for="svText">Schema (JSON)</label><textarea id="svText" rows="6" spellcheck="false"></textarea></div>
     <div class="field" style="margin-top:10px"><label for="svFile">Apri da file (formato editor)</label><input id="svFile" type="file" accept=".json,.txt,application/json,text/plain"></div>
     <div class="field" style="margin-top:10px"><label for="cadFile">Apri uno schema di CADe SIMU (.cad)</label><input id="cadFile" type="file" accept=".cad,.txt"></div>
+    <div class="field" style="margin-top:10px"><button class="btn ghost" id="cadExport" style="width:100%">⤓ Esporta in .cad per CADe SIMU (sperimentale)</button></div>
     <div class="mact">
       <button class="btn ghost" id="svCopy">Copia</button>
       <button class="btn ghost" id="svLoad">Carica dal testo</button>
@@ -479,6 +480,76 @@ function importCad(text){
   return true;
 }
 $("#cadFile").addEventListener("change",e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{if(importCad(String(rd.result)))mSave.hidden=true;};rd.readAsText(f,"latin1");e.target.value="";});
+
+// ---------- esporta in formato .cad di CADe SIMU ----------
+// Mappa inversa: tipo editor -> record CADe SIMU (codice, morsetti, flag "morsetto presente", riquadro).
+// Ricavata dai record reali documentati in FORMAT.md. I tipi avanzati (GRAFCET/PLC, sorgente L/N)
+// non hanno un equivalente affidabile e vengono esclusi (conteggiati).
+const EXP={
+ no:   {ty:7000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]},
+ nc:   {ty:7001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]},
+ pno:  {ty:8000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15]},
+ pnc:  {ty:8001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15]},
+ pnoe: {ty:8000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-18,-3,6,15]},
+ tno:  {ty:7004, terms:["67","68"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,6,15]},
+ coil: {ty:9000, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ coilt:{ty:9004, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ set:  {ty:9000, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ reset:{ty:9000, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ cnt:  {ty:9016, terms:["A1","A2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ lamp: {ty:9009, terms:["X1","X2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ horn: {ty:9009, terms:["X1","X2"],            flags:[1,1,0,0,0,0,0,0], bbox:[-15,-3,9,15]},
+ k3:   {ty:2001, terms:["1","3","5","2","4","6"], flags:[1,1,1,1,1,1,0,0], bbox:[-12,-3,18,15]},
+ k4:   {ty:2001, terms:["1","3","5","2","4","6"], flags:[1,1,1,1,1,1,0,0], bbox:[-12,-3,18,15]},
+ sez3: {ty:2004, terms:["1","3","5","2","4","6"], flags:[1,1,1,1,1,1,0,0], bbox:[-18,-3,18,15]},
+ mt3:  {ty:6009, terms:["1","3","5","2","4","6"], flags:[1,1,1,1,1,1,0,0], bbox:[-21,-3,18,24]},
+ diff3:{ty:6009, terms:["1","3","5","2","4","6"], flags:[1,1,1,1,1,1,0,0], bbox:[-21,-3,18,24]},
+ fuse: {ty:5000, terms:["1","2"],              flags:[1,0,0,0,0,0,0,0], bbox:[-6,-3,6,18]},
+ res:  {ty:1050, terms:["1","2"],              flags:[1,0,0,0,0,0,0,0], bbox:[-6,-3,12,15]},
+ motor:{ty:1000, terms:["U1","V1","W1","PE"],  flags:[1,1,1,1,0,0,0,0], bbox:[-12,-6,24,24]},
+ transf:{ty:3012,terms:["1","2","3","4"],      flags:[1,1,1,1,0,0,0,0], bbox:[-12,-3,12,18]},
+ edgep:{ty:7000, terms:["13","14"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]},
+ edgen:{ty:7001, terms:["11","12"],            flags:[1,1,0,0,0,0,0,0], bbox:[-12,-3,6,15]}
+};
+function cadRec(id,d,sig,x,y){
+  // blocco testo: sigla, un campo vuoto, i morsetti, poi riempito fino a 10 campi (variante standard)
+  const f=["-"+sig,""].concat(d.terms); while(f.length<10)f.push("");
+  return `*${id}*${d.ty}#`+f.join("#")+"*"+d.flags.join("*")+`*${x}*${y}*0*0*`+d.bbox.join("*")+"*0*0*0*1*0*0*0#";
+}
+function exportCad(){
+  const CC=px=>Math.round(px/U*6);               // px editor -> unità CADe (inverso dell'import)
+  let out="CADe_SIMU*0*3005#-X#########*0*0*0*0*0*0*0*0*12*33*0*0*-12*-9*24*3*0*0*0*1*0*0*0#";
+  let id=1,skipped=0;
+  for(const c of prog.comps){
+    const d=EXP[c.t]; if(!d){skipped++;continue;}
+    const sig=(c.lab||"").replace(/[*#]/g,"").trim()||(""+d.ty);
+    out+=cadRec(id++,d,sig,CC(c.x),CC(c.y));
+  }
+  for(const w of prog.wires){
+    for(let s=0;s<w.pts.length-1;s++){
+      const a=w.pts[s],b=w.pts[s+1];
+      out+=`*${id++}*4000##########*0*0*0*0*0*0*0*0*${CC(a[0])}*${CC(a[1])}*${CC(b[0])}*${CC(b[1])}*0*0*0*0*0*0*0*0*0*1*0#`;
+    }
+  }
+  const dt=new Date(),M=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][dt.getMonth()];
+  const date=`${dt.getDate()}-${M}-${dt.getFullYear()}`;
+  const name=("Officina"+"                     ").slice(0,21);
+  out+='$$$*1*1*1*2*3*0*1*0*0*279*210&&&*           *           *           *           *                         *                         *'+date+'*1          *1          *'+name+'*1*1*1*1*1*1*1*1*1*1*1*1*1*1***$$$&&&***$$$&&&';
+  return {text:out,skipped};
+}
+$("#cadExport").addEventListener("click",()=>{
+  if(!prog.comps.length&&!prog.wires.length){toast("Lo schema è vuoto");return;}
+  const r=exportCad();
+  const ta=$("#svText"); ta.value=r.text; ta.focus(); ta.select();
+  try{
+    const blob=new Blob([r.text],{type:"application/octet-stream"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a"); a.href=url; a.download="schema.cad";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }catch(e){}
+  toast("Esportato in .cad"+(r.skipped?` — ${r.skipped} elementi non convertiti`:"")+" · scaricato e copiabile qui sotto");
+});
 let toastT; function toast(m){const t=$("#toast");t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,2200);}
 
 // ---------- SIMULAZIONE ----------
@@ -573,4 +644,5 @@ setTool("select");
 setZoom(1); render(); updateHint();
 })();
 </script>
+
 <a href="index.html" aria-label="Torna alla home" style="position:fixed;left:max(12px,env(safe-area-inset-left,0px));bottom:calc(12px + env(safe-area-inset-bottom,0px));z-index:9999;width:40px;height:40px;border-radius:50%;background:rgba(20,23,30,.88);color:#f0a83a;border:1px solid rgba(240,168,58,.55);display:grid;place-items:center;text-decoration:none;font-size:18px;box-shadow:0 2px 8px rgba(0,0,0,.4);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)">⌂</a><script>if("serviceWorker" in navigator){addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})}</script></body></html>
