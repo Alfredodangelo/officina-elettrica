@@ -239,5 +239,67 @@ Codici estratti dalle funzioni di disegno di `CADe_SIMU.exe` (globale "tipo corr
 - GRAFCET e PLC: i codici sono certi; il disegno dettagliato del simbolo migliora con un file
   di esempio che li contenga.
 
+---
+
+## 5. Esportazione da *Editor Schemi* (scrittura dei `.cad`)
+
+L'*Editor Schemi* di questa app può **salvare** uno schema in formato `.cad`, così lo si
+riapre in CADe SIMU. L'esportazione è il percorso inverso dell'import ed è **sperimentale**:
+il file va provato aprendolo davvero in CADe SIMU, perché il formato è ricostruito, non ufficiale.
+
+### Cosa viene scritto
+1. **Intestazione**: il record origine del foglio
+   `CADe_SIMU*0*3005#-X#…#` (tipo 3005), con `id = 0`.
+2. **Un record per componente**, con `id` progressivo da 1:
+
+   ```
+   *<id>*<tipo>#-<sigla>##<m1>#<m2>#…##<flag…>*<x>*<y>*0*0*<bbox>*0*0*0*1*0*0*0#
+   ```
+
+   - il blocco testo ha sempre **10 campi** (`%s`): sigla con trattino iniziale, un campo
+     vuoto, i nomi dei morsetti, poi riempimento con campi vuoti (variante standard, cfr. §2);
+   - i **flag "morsetto presente"** e il **riquadro** (`bbox`) sono quelli tipici del tipo,
+     ricavati da record reali;
+   - i due **nodi** finali sono scritti a `0*0`: CADe SIMU ricostruisce la rete dalla
+     geometria dei fili, quindi non servono per ridisegnare lo schema.
+3. **Un record per ogni tratto di filo** (tipo `4000`), con gli estremi `x1,y1,x2,y2` nei
+   campi 8–11:
+
+   ```
+   *<id>*4000##########*0*0*0*0*0*0*0*0*<x1>*<y1>*<x2>*<y2>*0*0*0*0*0*0*0*0*0*1*0#
+   ```
+   Una polilinea dell'editor viene spezzata in più segmenti, uno per record.
+4. **Piè di pagina**: `$$$…&&&…` con foglio `279*210`, data corrente e nome del disegno.
+
+### Conversione delle coordinate
+Inversa dell'import: `unità_CADe = round(px_editor / 16 * 6)` (16 px = 1 cella dell'editor =
+6 unità CADe). Il round-trip *editor → .cad → editor* conserva tipi, posizioni e sigle.
+
+### Mappa tipo editor → codice CADe (export)
+| editor | codice | | editor | codice |
+|---|---|---|---|---|
+| `no` | 7000 | | `k3` / `k4` | 2001 |
+| `nc` | 7001 | | `sez3` | 2004 |
+| `pno` / `pnoe` | 8000 | | `mt3` / `diff3` | 6009 |
+| `pnc` | 8001 | | `fuse` | 5000 |
+| `tno` | 7004 | | `res` | 1050 |
+| `coil` / `set` / `reset` | 9000 | | `motor` | 1000 |
+| `coilt` | 9004 | | `transf` | 3012 |
+| `lamp` / `horn` | 9009 | | `edgep` → 7000, `edgen` → 7001 | |
+| `cnt` | 9016 | | | |
+
+### Limiti noti
+- **GRAFCET, PLC e la sorgente L/N** (`gstep`, `ginit`, `glink`, `plci`, `plco`, `plccpu`,
+  `src`) **non** vengono esportati: non hanno un record affidabile. Il numero di elementi
+  saltati è mostrato a fine esportazione.
+- Alcune corrispondenze sono **approssimazioni**: il contattore 4 poli esce come 3 poli
+  (2001), la sirena come lampada (9009), il pulsante d'emergenza come pulsante normale (8000).
+- La **rotazione** dei componenti non viene riportata: in CADe escono in verticale
+  (i fili, scritti con le coordinate reali, restano al posto giusto).
+- Il `bbox` serve solo alla selezione in CADe e può non essere perfetto: non impedisce il
+  disegno del simbolo, guidato dal codice-tipo.
+
+---
+
 *Documentazione generata nel contesto del progetto Officina Elettrica. Reverse engineering a
 scopo di interoperabilità e didattica.*
